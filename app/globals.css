@@ -1,0 +1,162 @@
+@import "tailwindcss";
+@import "./fonts.css";
+
+/* body {
+  font-family: "DMSans", sans-serif;
+} */
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee {
+  width: max-content;
+  animation: marquee 25s linear infinite;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 10px; /* Scrollbar ki width */
+  height: 10px; /* Horizontal scrollbar */
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a; /* Track color */
+  border-radius: 9999px; /* Round corners */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #222937; /* Scroll thumb color */
+  border-radius: 9999px; /* Round corners */
+  border: 3px solid #1a1a1a; /* Thumb border */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #222937; /* Hover color */
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #222937 #1a1a1a;
+}
+
+[data-animate="true"] {
+  opacity: 0;
+  transform: translateY(40px);
+}
+
+/* Layout */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 240px;
+  background: #2b3343;
+  padding: 20px;
+}
+
+.logo {
+  color: #22c55e;
+  margin-bottom: 30px;
+}
+
+.nav button {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #cbd5f5;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.nav button.active,
+.nav button:hover {
+  background: #1e293b;
+  color: white;
+}
+
+/* Main */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Topbar */
+.topbar {
+  height: 60px;
+  background: #202736;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.search-input {
+  background: #1e293b;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: white;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  background: #f97316;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Content */
+.content-area {
+  padding: 20px;
+}
+
+.dashboard {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+}
+
+body {
+  background: #202736;
+  color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+}
+
+@layer utilities {
+  .sidebar-slide {
+    @apply transition-transform duration-300 ease-in-out;
+  }
+
+  .overlay-fade {
+    @apply transition-opacity duration-300 ease-in-out;
+  }
+}
