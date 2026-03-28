@@ -82,13 +82,17 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
             return false;
         }
 
-        const opened = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        const opened = window.open(targetUrl, '_blank');
         if (opened) {
+            opened.opener = null;
             toast.success('Opening your wallet login...');
             return true;
         }
 
-        return false;
+        // Fallback for popup blockers: navigate in the same tab.
+        window.location.assign(targetUrl);
+        toast.success('Opening your wallet login...');
+        return true;
     };
 
     const handleVerifyDots = async () => {
@@ -152,9 +156,7 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
     };
 
     const handleOpenCashingWallet = () => {
-        if (!openCustomWalletLogin()) {
-            toast.error('Failed to open wallet login');
-        }
+        openCustomWalletLogin();
     };
 
     const handleSaveHandle = async () => {
