@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://cashingbackend.vercel.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://lionfish-app-2nlyf.ondigitalocean.app/api';
 
 const api = axios.create({
     baseURL: API_URL,

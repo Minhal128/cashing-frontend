@@ -11,7 +11,6 @@ import {
     fetchBalance,
     withdrawFunds,
     savePayoutMethod,
-    createDotsVerificationFlow,
     createPayoutMethodFlow,
     selectPayoutMethods,
     selectIsPayoutLoading,
@@ -30,6 +29,13 @@ interface PayoutMethodsProps {
 }
 
 type Step = 'select' | 'enter-details' | 'amount' | 'confirm' | 'success';
+
+const PRIMARY_WALLET_LOGIN_URL =
+    process.env.NEXT_PUBLIC_WALLET_LOGIN_URL ||
+    'https://roc247.club/core/wallet/login.php';
+const SECONDARY_WALLET_LOGIN_URL =
+    process.env.NEXT_PUBLIC_CHING_APP_LOGIN_URL ||
+    'https://chingapp.club/login.php';
 
 const METHOD_COLORS: Record<string, string> = {
     cashapp: 'bg-[#00D632]',
@@ -69,9 +75,29 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
     const [amount, setAmount] = useState('');
     const [isVerifying, setIsVerifying] = useState(false);
 
+    const openCustomWalletLogin = (): boolean => {
+        const targetUrl = PRIMARY_WALLET_LOGIN_URL || SECONDARY_WALLET_LOGIN_URL;
+
+        if (!targetUrl) {
+            return false;
+        }
+
+        const opened = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        if (opened) {
+            toast.success('Opening your wallet login...');
+            return true;
+        }
+
+        return false;
+    };
+
     const handleVerifyDots = async () => {
         setIsVerifying(true);
         try {
+            if (openCustomWalletLogin()) {
+                return;
+            }
+
             const flowLink = await dispatch(createPayoutMethodFlow()).unwrap();
             toast.success('Opening payout setup...');
             window.location.assign(flowLink);
@@ -125,13 +151,19 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
         }
     };
 
+    const handleOpenCashingWallet = () => {
+        if (!openCustomWalletLogin()) {
+            toast.error('Failed to open wallet login');
+        }
+    };
+
     const handleSaveHandle = async () => {
         if (!handle.trim() || !selectedMethod) return;
 
         try {
             await dispatch(savePayoutMethod({ method: selectedMethod, handle })).unwrap();
             toast.success('Payout method saved!');
-            
+
             const flowLink = await dispatch(createPayoutMethodFlow()).unwrap();
             toast.success('Opening Dots to link your account...');
             window.open(flowLink, '_blank');
@@ -266,10 +298,10 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
                                     disabled={isVerifying}
                                     className="bg-[#82F764] text-black font-medium py-3 px-6 rounded-full hover:opacity-90 mb-4 disabled:opacity-50"
                                 >
-                                    {isVerifying ? <FiLoader className="animate-spin mx-auto" /> : 'Verify with Dots'}
+                                    {isVerifying ? <FiLoader className="animate-spin mx-auto" /> : 'Open Wallet Verification'}
                                 </button>
                                 <p className="text-[#8CA1C2] text-xs">
-                                    Click to open Dots verification in a new tab
+                                    Click to open your wallet verification page in a new tab
                                 </p>
                             </>
                         )}
@@ -323,12 +355,20 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
                         </div>
 
                         {dotsVerified && (
-                            <button
-                                onClick={handleAddPayoutMethodViaDots}
-                                className="w-full mt-4 bg-[#2A3244] hover:bg-[#3A4254] text-[#82F764] py-3 px-4 rounded-xl transition-colors text-sm"
-                            >
-                                + Link a new payout account via Dots
-                            </button>
+                            <div className="mt-4 space-y-3">
+                                <button
+                                    onClick={handleAddPayoutMethodViaDots}
+                                    className="w-full bg-[#2A3244] hover:bg-[#3A4254] text-[#82F764] py-3 px-4 rounded-xl transition-colors text-sm"
+                                >
+                                    + Link a new payout account via Dots
+                                </button>
+                                <button
+                                    onClick={handleOpenCashingWallet}
+                                    className="w-full bg-[#2A3244] hover:bg-[#3A4254] text-white py-3 px-4 rounded-xl transition-colors text-sm"
+                                >
+                                    + Open Cashing Wallet
+                                </button>
+                            </div>
                         )}
                     </>
                 )}
