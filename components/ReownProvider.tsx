@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createAppKit } from "@reown/appkit/react";
 import { WagmiProvider } from "wagmi";
 import {
-  reownMetadata,
+  buildReownMetadata,
   reownNetworks,
   reownProjectId,
   wagmiAdapter,
@@ -18,6 +18,8 @@ declare global {
 const queryClient = new QueryClient();
 
 if (typeof window !== "undefined" && !globalThis.__reownAppKitInitialized) {
+  const reownMetadata = buildReownMetadata(window.location.origin);
+
   createAppKit({
     adapters: [wagmiAdapter],
     projectId: reownProjectId,

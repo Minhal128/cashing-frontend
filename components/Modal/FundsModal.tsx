@@ -30,16 +30,15 @@ const PayPalIcon = () => (
   </svg>
 );
 
-// Current Bank SVG Icon Component - Modern lightning bolt with glow effect
-const CurrentIcon = () => (
+// Chime SVG icon for the bank method tile.
+const ChimeIcon = () => (
   <svg viewBox="0 0 32 32" className="w-8 h-8" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <linearGradient id="currentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" style={{ stopColor: '#00D9FF', stopOpacity: 1 }} />
-        <stop offset="50%" style={{ stopColor: '#00B8E6', stopOpacity: 1 }} />
-        <stop offset="100%" style={{ stopColor: '#0099FF', stopOpacity: 1 }} />
+      <linearGradient id="chimeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style={{ stopColor: '#22C55E', stopOpacity: 1 }} />
+        <stop offset="100%" style={{ stopColor: '#16A34A', stopOpacity: 1 }} />
       </linearGradient>
-      <filter id="glow">
+      <filter id="chimeGlow">
         <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
         <feMerge>
           <feMergeNode in="coloredBlur"/>
@@ -47,11 +46,19 @@ const CurrentIcon = () => (
         </feMerge>
       </filter>
     </defs>
-    <path 
-      d="M18 2L8 16h6l-2 12 12-16h-7l3-10z" 
-      fill="url(#currentGradient)"
-      filter="url(#glow)"
-      strokeWidth="0.5"
+    <circle
+      cx="16"
+      cy="16"
+      r="12"
+      fill="url(#chimeGradient)"
+      filter="url(#chimeGlow)"
+    />
+    <path
+      d="M21 11.2C19.9 10.2 18.5 9.7 16.8 9.7C12.8 9.7 10 12.5 10 16.6C10 20.7 12.8 23.5 16.8 23.5C18.5 23.5 19.9 23 21 22"
+      stroke="#FFFFFF"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -116,11 +123,11 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
   },
   {
     id: 'current',
-    name: 'Current',
-    icon: CurrentIcon,
+    name: 'Chime',
+    icon: ChimeIcon,
     iconType: 'component',
-    bgColor: 'bg-gradient-to-br from-[#000000] to-[#1A1A2E]',
-    description: 'Bank account - instant'
+    bgColor: 'bg-gradient-to-br from-[#22C55E] to-[#15803D]',
+    description: 'Chime account - instant'
   }
 ];
 

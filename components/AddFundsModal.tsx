@@ -58,11 +58,11 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
     },
     {
         id: 'current',
-        name: 'Current',
-        icon: '⚡',
-        color: '#00D9FF',
-        bgColor: 'bg-gradient-to-br from-[#000000] to-[#1A1A2E]',
-        description: 'Bank account - instant'
+        name: 'Chime',
+        icon: 'C',
+        color: '#22C55E',
+        bgColor: 'bg-gradient-to-br from-[#22C55E] to-[#15803D]',
+        description: 'Chime account - instant'
     }
 ];
 
