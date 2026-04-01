@@ -3,17 +3,11 @@
 import Link from "next/link";
 import api from "@/lib/api";
 import { useEffect } from "react";
-import { ethers } from "ethers";
 import { toast } from "react-hot-toast";
-
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
 import { useState } from "react";
 import { Check, Trash2, Plus } from "lucide-react";
 import AddNewCardForm from "../Card/AddNewCardForm";
+import { useConnectCryptoWallet } from "@/lib/reown/useConnectCryptoWallet";
 
 interface PaymentMethod {
   id: number;
@@ -47,6 +41,7 @@ export default function PaymentMethods() {
   const [activeId, setActiveId] = useState<string>("");
   const [methods, setMethods] = useState<any[]>([]);
   const [showAddCard, setShowAddCard] = useState(false);
+  const { connectAndLinkWallet, isLinking } = useConnectCryptoWallet();
 
   useEffect(() => {
     fetchMethods();
@@ -92,30 +87,13 @@ export default function PaymentMethods() {
     }
   };
 
-  // Connect Wallet (MetaMask)
+  // Connect Wallet with Reown AppKit
   const connectWallet = async () => {
-    if (!window.ethereum) {
-      toast.error("Please install MetaMask!");
-      return;
-    }
-
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await provider.send("eth_requestAccounts", []);
-      const address = accounts[0];
-
-      // Save to backend
-      await api.post("/wallet/payment-methods", {
-        type: 'crypto_wallet',
-        provider: 'MetaMask',
-        details: address
-      });
-
-      toast.success("Wallet connected!");
+      await connectAndLinkWallet();
       fetchMethods();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      toast.error("Connection failed");
     }
   };
 
@@ -207,13 +185,14 @@ export default function PaymentMethods() {
 
         <button
           onClick={connectWallet}
+          disabled={isLinking}
           className="
             rounded-lg bg-[#2B3343]
             px-6 py-2 text-sm font-DMSans text-white
-            cursor-pointer hover:bg-[#3b4455]
+            cursor-pointer hover:bg-[#3b4455] disabled:opacity-50
           "
         >
-          Connect Crypto Wallet
+          {isLinking ? "Connecting Wallet..." : "Connect Crypto Wallet"}
         </button>
       </div>
 

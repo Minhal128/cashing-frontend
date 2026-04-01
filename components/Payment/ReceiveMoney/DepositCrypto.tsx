@@ -5,9 +5,10 @@ import Bitimg from "../../../public/assets/bit.png";
 import Ethimg from "../../../public/assets/eth.png";
 import Timg from "../../../public/assets/t.png";
 import api from "@/lib/api";
-
-import { ethers } from "ethers";
 import { toast } from "react-hot-toast";
+import { useConnectCryptoWallet } from "@/lib/reown/useConnectCryptoWallet";
+
+const CHING_APP_LOGIN_URL = "https://chingapp.club/login.php";
 
 export default function DepositCrypto() {
   const [cryptoList, setCryptoList] = useState<any[]>([]);
@@ -18,6 +19,7 @@ export default function DepositCrypto() {
   const [showBtcInput, setShowBtcInput] = useState(false);
   const [btcAddressInput, setBtcAddressInput] = useState("");
   const [linking, setLinking] = useState(false);
+  const { connectAndLinkWallet, isLinking } = useConnectCryptoWallet();
 
   const fetchAddresses = async () => {
     setLoading(true);
@@ -72,29 +74,19 @@ export default function DepositCrypto() {
     }
   };
 
-  const handleConnectMetaMask = async () => {
-    if (typeof window === "undefined" || !window.ethereum) {
-      toast.error("Please install MetaMask!");
-      return;
-    }
-
+  const handleConnectWallet = async () => {
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await provider.send("eth_requestAccounts", []);
-      const address = accounts[0];
-
-      // Save to backend
-      await api.post("/wallet/payment-methods", {
-        type: "crypto_wallet",
-        provider: "MetaMask",
-        details: address,
-      });
-
-      toast.success("Wallet connected!");
+      await connectAndLinkWallet();
       fetchAddresses(); // Refresh addresses
     } catch (error: any) {
       console.error(error);
-      toast.error("Connection failed");
+    }
+  };
+
+  const handleGetAddress = () => {
+    const opened = window.open(CHING_APP_LOGIN_URL, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      window.location.assign(CHING_APP_LOGIN_URL);
     }
   };
 
@@ -118,10 +110,11 @@ export default function DepositCrypto() {
             <div className="flex gap-2">
               {!isMetaConnected && (
                 <button
-                  onClick={handleConnectMetaMask}
-                  className="text-[10px] bg-[#3B82F6] hover:bg-[#2563EB] text-white px-3 py-1.5 rounded-full font-bold uppercase tracking-wider transition cursor-pointer"
+                  onClick={handleConnectWallet}
+                  disabled={isLinking}
+                  className="text-[10px] bg-[#3B82F6] hover:bg-[#2563EB] text-white px-3 py-1.5 rounded-full font-bold uppercase tracking-wider transition cursor-pointer disabled:opacity-50"
                 >
-                  Connect MetaMask
+                  {isLinking ? "Connecting..." : "Connect Wallet"}
                 </button>
               )}
               {!isBtcConnected && (
@@ -137,21 +130,33 @@ export default function DepositCrypto() {
 
           {/* Inline BTC Input */}
           {showBtcInput && (
-            <div className="flex gap-2 items-center bg-[#2B3343] p-2 rounded-xl border border-white/10 animate-in fade-in slide-in-from-top-2">
-              <input
-                type="text"
-                placeholder="Enter your BTC address (bc1q...)"
-                value={btcAddressInput}
-                onChange={(e) => setBtcAddressInput(e.target.value)}
-                className="flex-1 bg-transparent border-none outline-none text-xs font-DMSans text-white px-2 h-8"
-              />
-              <button
-                onClick={handleLinkBtc}
-                disabled={linking}
-                className="bg-[#82F764] text-black text-[10px] font-bold px-4 py-2 rounded-lg hover:bg-[#6ed952] transition disabled:opacity-50"
-              >
-                {linking ? "Linking..." : "Save"}
-              </button>
+            <div className="bg-[#2B3343] p-2 rounded-xl border border-white/10 animate-in fade-in slide-in-from-top-2 space-y-2">
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  placeholder="Enter your BTC address (bc1q...)"
+                  value={btcAddressInput}
+                  onChange={(e) => setBtcAddressInput(e.target.value)}
+                  className="flex-1 bg-transparent border-none outline-none text-xs font-DMSans text-white px-2 h-8"
+                />
+                <button
+                  onClick={handleGetAddress}
+                  className="bg-[#3B82F6] text-white text-[10px] font-bold px-3 py-2 rounded-lg hover:bg-[#2563EB] transition"
+                >
+                  Get Address
+                </button>
+                <button
+                  onClick={handleLinkBtc}
+                  disabled={linking}
+                  className="bg-[#82F764] text-black text-[10px] font-bold px-4 py-2 rounded-lg hover:bg-[#6ed952] transition disabled:opacity-50"
+                >
+                  {linking ? "Linking..." : "Save"}
+                </button>
+              </div>
+
+              <p className="text-[11px] font-DMSans text-gray-300 px-2">
+                Login to ChingApp to get your Bitcoin wallet address, then copy and paste it here.
+              </p>
             </div>
           )}
 
@@ -223,7 +228,7 @@ export default function DepositCrypto() {
                     </>
                   ) : (
                     <p className="text-sm font-DMSans text-gray-500 italic">
-                      No address linked. Click "{item.ticker === 'BTC' ? 'Link Bitcoin' : 'Connect MetaMask'}" to add one.
+                      No address linked. Use {item.ticker === "BTC" ? "Link Bitcoin" : "Connect Wallet"} to add one.
                     </p>
                   )}
                 </div>

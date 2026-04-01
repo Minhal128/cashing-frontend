@@ -46,7 +46,7 @@ export default function LinkedWallets() {
               {/* Left */}
               <div className="flex items-center gap-2">
                 <Image
-                  src={wallet.provider === 'MetaMask' ? Eth : BitCoin} // Simple fallback logic
+                  src={wallet.provider === 'Bitcoin' ? BitCoin : Eth}
                   alt={wallet.provider || 'Wallet'}
                   width={30}
                   height={30}

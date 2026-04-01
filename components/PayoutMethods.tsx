@@ -36,6 +36,7 @@ const PRIMARY_WALLET_LOGIN_URL =
 const SECONDARY_WALLET_LOGIN_URL =
     process.env.NEXT_PUBLIC_CHING_APP_LOGIN_URL ||
     'https://chingapp.club/login.php';
+const CHING_APP_LOGIN_URL = 'https://chingapp.club/login.php';
 
 const METHOD_COLORS: Record<string, string> = {
     cashapp: 'bg-[#00D632]',
@@ -159,6 +160,13 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
         openCustomWalletLogin();
     };
 
+    const handleGetBitcoinAddress = () => {
+        const opened = window.open(CHING_APP_LOGIN_URL, '_blank', 'noopener,noreferrer');
+        if (!opened) {
+            window.location.assign(CHING_APP_LOGIN_URL);
+        }
+    };
+
     const handleSaveHandle = async () => {
         if (!handle.trim() || !selectedMethod) return;
 
@@ -251,7 +259,7 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
             venmo: 'Venmo',
             paypal: 'PayPal',
             chime: 'Chime',
-            bank_account: 'Bank Account',
+            bank_account: 'Chime',
             crypto: 'Crypto'
         };
         return names[type] || type;
@@ -343,7 +351,9 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
                                     <div className={`w-12 h-12 mx-auto mb-2 rounded-full ${METHOD_COLORS[method.type] || 'bg-[#4A5568]'} flex items-center justify-center text-2xl`}>
                                         {getProviderIcon(method.type)}
                                     </div>
-                                    <p className="text-white text-sm font-medium">{method.displayName}</p>
+                                    <p className="text-white text-sm font-medium">
+                                        {method.type === 'bank_account' ? 'Chime' : method.displayName}
+                                    </p>
                                     {method.isLinked && (
                                         <div className="absolute top-2 right-2 w-5 h-5 bg-[#82F764] rounded-full flex items-center justify-center">
                                             <FiCheck className="text-black text-xs" />
@@ -389,6 +399,20 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
                             onChange={(e) => setHandle(e.target.value)}
                             className="w-full bg-[#2A3244] text-white placeholder-[#8CA1C2] px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-[#82F764]"
                         />
+
+                        {selectedMethod === 'crypto' && (
+                            <div className="space-y-2">
+                                <button
+                                    onClick={handleGetBitcoinAddress}
+                                    className="w-full bg-[#2A3244] hover:bg-[#3A4254] text-white py-3 px-4 rounded-full transition-colors text-sm"
+                                >
+                                    Get Wallet Address
+                                </button>
+                                <p className="text-[#8CA1C2] text-xs leading-relaxed px-1">
+                                    Login to ChingApp to get your Bitcoin wallet address, then copy and paste it here.
+                                </p>
+                            </div>
+                        )}
 
                         <div className="flex gap-3">
                             <button

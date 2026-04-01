@@ -38,7 +38,7 @@ export default function OtherPaymentMethod() {
   const paymentMethods: PaymentMethod[] = [
     {
       id: 1,
-      title: "Bank / Card payments",
+      title: "Chime / Card payments",
       subtitle: user?.bankAccountMask || (user?.linkedBanks?.length > 0 ? `${user.linkedBanks[0].institutionName} (**** ${user.linkedBanks[0].last4})` : "Not connected"),
       icon: VisaIcon,
       status: (user?.bankAccountMask || user?.linkedBanks?.length > 0) ? "enabled" : "not_connected",

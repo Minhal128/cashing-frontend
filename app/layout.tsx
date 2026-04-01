@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import ScrollAnimationWrapper from "@/components/Landing/ScrollAnimationWrapper";
 import StripeProvider from "@/components/StripeProvider";
+import ReownProvider from "@/components/ReownProvider";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { ReduxProvider } from "@/lib/store/provider";
 
@@ -21,13 +22,15 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <Toaster position="top-center" reverseOrder={false} />
-        <ReduxProvider>
-          <CurrencyProvider>
-            <StripeProvider>
-              <ScrollAnimationWrapper>{children}</ScrollAnimationWrapper>
-            </StripeProvider>
-          </CurrencyProvider>
-        </ReduxProvider>
+        <ReownProvider>
+          <ReduxProvider>
+            <CurrencyProvider>
+              <StripeProvider>
+                <ScrollAnimationWrapper>{children}</ScrollAnimationWrapper>
+              </StripeProvider>
+            </CurrencyProvider>
+          </ReduxProvider>
+        </ReownProvider>
       </body>
     </html>
   );

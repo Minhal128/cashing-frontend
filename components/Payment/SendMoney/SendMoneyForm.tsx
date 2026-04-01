@@ -12,7 +12,7 @@ type TabType = "user" | "bank" | "crypto";
 
 const tabs: { label: string; value: TabType }[] = [
   { label: "Send by user ID or Tag", value: "user" },
-  { label: "Send to external banks", value: "bank" },
+  { label: "Send to Chime", value: "bank" },
   { label: "Crypto", value: "crypto" },
 ];
 
