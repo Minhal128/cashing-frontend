@@ -244,7 +244,24 @@ const walletSlice = createSlice({
         });
         builder.addCase(fetchPayoutMethods.fulfilled, (state, action) => {
             state.isLoading = false;
-            state.payoutMethods = action.payload.methods;
+            const incomingMethods = Array.isArray(action.payload.methods)
+                ? action.payload.methods
+                : [];
+
+            const hasCryptoMethod = incomingMethods.some((method: PayoutMethod) => method.type === 'crypto');
+
+            state.payoutMethods = hasCryptoMethod
+                ? incomingMethods
+                : [
+                    {
+                        type: 'crypto',
+                        displayName: 'Crypto',
+                        handle: null,
+                        isLinked: false,
+                        icon: '₿'
+                    },
+                    ...incomingMethods
+                ];
             state.kycVerified = action.payload.kycVerified;
             state.dotsEnrolled = action.payload.dotsEnrolled;
             state.dotsVerified = action.payload.dotsVerified || false;

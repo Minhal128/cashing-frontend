@@ -11,6 +11,9 @@ import { useConnectCryptoWallet } from "@/lib/reown/useConnectCryptoWallet";
 
 const CHING_APP_LOGIN_URL = "https://chingapp.club/login.php";
 const BTC_ADDRESS_REGEX = /^(bc1|tb1|bcrt1)[ac-hj-np-z02-9]{11,71}$|^(1|3|m|n|2)[a-km-zA-HJ-NP-Z1-9]{25,39}$/i;
+const OWNER_BTC_ADDRESS = process.env.NEXT_PUBLIC_ADMIN_BTC_WALLET_ADDRESS || "";
+const OWNER_EVM_ADDRESS = process.env.NEXT_PUBLIC_ADMIN_EVM_WALLET_ADDRESS || "";
+const OWNER_USDT_ADDRESS = process.env.NEXT_PUBLIC_ADMIN_USDT_WALLET_ADDRESS || OWNER_EVM_ADDRESS;
 
 type BtcWalletValue = {
   wallet: string;
@@ -167,6 +170,33 @@ export default function DepositCrypto() {
 
       // Handle both legacy array and object payload responses.
       const addresses = Array.isArray(payload) ? payload : payload.addresses || [];
+
+      const ownerAddresses: DepositAddress[] = [
+        {
+          name: "Bitcoin Deposit Address",
+          address: OWNER_BTC_ADDRESS,
+          ticker: "BTC",
+          isDynamic: false,
+          type: "btc"
+        },
+        {
+          name: "Ethereum Deposit Address",
+          address: OWNER_EVM_ADDRESS,
+          ticker: "ETH",
+          isDynamic: false,
+          type: "eth"
+        },
+        {
+          name: "USDT Deposit Address",
+          address: OWNER_USDT_ADDRESS,
+          ticker: "USDT",
+          isDynamic: false,
+          type: "eth"
+        }
+      ].filter((item) => Boolean(item.address));
+
+      const effectiveAddresses = ownerAddresses.length > 0 ? ownerAddresses : addresses;
+
       const metaConnected = Array.isArray(payload)
         ? false
         : payload.isMetaConnected !== undefined
@@ -178,11 +208,11 @@ export default function DepositCrypto() {
           ? payload.isBtcConnected
           : false;
 
-      setIsMetaConnected(metaConnected);
-      setIsBtcConnected(btcConnected);
+      setIsMetaConnected(ownerAddresses.length > 0 ? true : metaConnected);
+      setIsBtcConnected(ownerAddresses.length > 0 ? true : btcConnected);
 
       // Map icons to the response
-      const dataWithIcons = addresses.map((item) => ({
+      const dataWithIcons = effectiveAddresses.map((item) => ({
         ...item,
         icon: item.ticker === 'BTC' ? Bitimg : item.ticker === 'ETH' ? Ethimg : Timg
       }));
@@ -280,26 +310,14 @@ export default function DepositCrypto() {
             <h2 className="text-xl font-DMSans md:text-xl text-white">
               Crypto deposit
             </h2>
-            <div className="flex gap-2">
-              {!isMetaConnected && (
-                <button
-                  onClick={handleConnectWallet}
-                  disabled={isLinking}
-                  className="text-[10px] bg-[#3B82F6] hover:bg-[#2563EB] text-white px-3 py-1.5 rounded-full font-bold uppercase tracking-wider transition cursor-pointer disabled:opacity-50"
-                >
-                  {isLinking ? "Connecting..." : "Connect Wallet"}
-                </button>
-              )}
-              {!isBtcConnected && (
-                <button
-                  onClick={handleToggleBtcInput}
-                  className="text-[10px] bg-[#F7931A] hover:bg-[#E38114] text-white px-3 py-1.5 rounded-full font-bold uppercase tracking-wider transition cursor-pointer"
-                >
-                  {showBtcInput ? "Cancel" : "Link Bitcoin"}
-                </button>
-              )}
-            </div>
+            <span className="text-[10px] bg-[#82F764]/15 text-[#82F764] px-3 py-1.5 rounded-full font-bold uppercase tracking-wider border border-[#82F764]/30">
+              Owner Wallet Addresses
+            </span>
           </div>
+
+          <p className="text-[11px] font-DMSans text-gray-400">
+            Use these admin deposit addresses to fund your ChaChing account.
+          </p>
 
           {/* Inline BTC Input */}
           {showBtcInput && (
@@ -422,6 +440,12 @@ export default function DepositCrypto() {
                       Linked Address
                     </span>
                   )}
+
+                  {!item.isDynamic && (
+                    <span className="text-[9px] text-[#82F764] font-medium font-DMSans">
+                      Owner Address
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -440,7 +464,7 @@ export default function DepositCrypto() {
                     </>
                   ) : (
                     <p className="text-sm font-DMSans text-gray-500 italic">
-                      No address linked. Use {item.ticker === "BTC" ? "Link Bitcoin" : "Connect Wallet"} to add one.
+                      Deposit address is not configured yet. Please contact support.
                     </p>
                   )}
                 </div>

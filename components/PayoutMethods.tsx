@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ClipboardEvent } from 'react';
 import { FiCheck, FiLoader, FiAlertCircle, FiX, FiDollarSign } from 'react-icons/fi';
 import { SiCashapp, SiVenmo, SiPaypal } from 'react-icons/si';
 import { BsBank } from 'react-icons/bs';
 import { FaBitcoin } from 'react-icons/fa';
+import api from '@/lib/api';
 import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
 import {
     fetchPayoutMethods,
@@ -29,6 +30,10 @@ interface PayoutMethodsProps {
 }
 
 type Step = 'select' | 'enter-details' | 'amount' | 'confirm' | 'success';
+type CryptoTicker = 'BTC' | 'ETH' | 'USDT' | 'USDC';
+
+const BTC_ADDRESS_REGEX = /^(bc1|tb1|bcrt1)[ac-hj-np-z02-9]{11,71}$|^(1|3|m|n|2)[a-km-zA-HJ-NP-Z1-9]{25,39}$/i;
+const EVM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
 const PRIMARY_WALLET_LOGIN_URL =
     process.env.NEXT_PUBLIC_WALLET_LOGIN_URL ||
@@ -36,7 +41,6 @@ const PRIMARY_WALLET_LOGIN_URL =
 const SECONDARY_WALLET_LOGIN_URL =
     process.env.NEXT_PUBLIC_CHING_APP_LOGIN_URL ||
     'https://chingapp.club/login.php';
-const CHING_APP_LOGIN_URL = 'https://chingapp.club/login.php';
 
 const METHOD_COLORS: Record<string, string> = {
     cashapp: 'bg-[#00D632]',
@@ -59,6 +63,21 @@ const getProviderIcon = (type: string) => {
     }
 };
 
+const isValidAddressForTicker = (address: string, ticker: CryptoTicker) => {
+    const normalized = address.trim();
+
+    if (!normalized) return false;
+    if (ticker === 'BTC') return BTC_ADDRESS_REGEX.test(normalized);
+    return EVM_ADDRESS_REGEX.test(normalized);
+};
+
+const getAddressValidationMessage = (ticker: CryptoTicker) => {
+    if (ticker === 'BTC') {
+        return 'Enter a valid BTC address (bc1..., 1..., or 3...)';
+    }
+    return `Enter a valid ${ticker} EVM address (0x...)`;
+};
+
 export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
     const dispatch = useAppDispatch();
     const payoutMethods = useAppSelector(selectPayoutMethods);
@@ -75,6 +94,41 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
     const [handle, setHandle] = useState('');
     const [amount, setAmount] = useState('');
     const [isVerifying, setIsVerifying] = useState(false);
+    const [cryptoTicker, setCryptoTicker] = useState<CryptoTicker>('BTC');
+    const [isDirectProcessing, setIsDirectProcessing] = useState(false);
+    const [directCryptoStatus, setDirectCryptoStatus] = useState<'pending' | 'completed'>('completed');
+
+    const getCryptoPlaceholder = () => {
+        if (cryptoTicker === 'BTC') return 'Bitcoin Wallet Address (bc1..., 1..., 3...)';
+        return `${cryptoTicker} Wallet Address (0x...)`;
+    };
+
+    const getErrorMessage = (err: unknown, fallback: string) => {
+        const errorAny = err as any;
+        return errorAny?.response?.data?.message
+            || errorAny?.response?.data?.error
+            || errorAny?.message
+            || fallback;
+    };
+
+    const handleWalletPaste = (event: ClipboardEvent<HTMLInputElement>) => {
+        if (selectedMethod !== 'crypto') return;
+
+        event.preventDefault();
+        const pastedValue = event.clipboardData.getData('text').trim();
+        setHandle(pastedValue);
+
+        if (!pastedValue) {
+            toast.error('No wallet address detected in clipboard');
+            return;
+        }
+
+        if (isValidAddressForTicker(pastedValue, cryptoTicker)) {
+            toast.success('Wallet address pasted and validated');
+        } else {
+            toast.error(getAddressValidationMessage(cryptoTicker));
+        }
+    };
 
     const openCustomWalletLogin = (): boolean => {
         const targetUrl = PRIMARY_WALLET_LOGIN_URL || SECONDARY_WALLET_LOGIN_URL;
@@ -108,8 +162,9 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
             window.location.assign(flowLink);
         } catch (err) {
             toast.error('Failed to open payout setup');
+        } finally {
+            setIsVerifying(false);
         }
-        setIsVerifying(false);
     };
 
     useEffect(() => {
@@ -135,7 +190,13 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
     }, [error, dispatch]);
 
     const handleSelectMethod = (methodType: string) => {
+        if (!dotsVerified && methodType !== 'crypto') {
+            toast.error('This payout method requires Dots verification. Use Direct Crypto for now or verify Dots.');
+            return;
+        }
+
         setSelectedMethod(methodType);
+
         const method = payoutMethods.find(m => m.type === methodType);
 
         if (method?.isLinked && method.handle) {
@@ -146,33 +207,33 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
         }
     };
 
-    const handleAddPayoutMethodViaDots = async () => {
-        try {
-            const flowLink = await dispatch(createPayoutMethodFlow()).unwrap();
-            toast.success('Opening Dots to link your payout method...');
-            window.open(flowLink, '_blank');
-        } catch (err) {
-            toast.error('Failed to open verification');
-        }
-    };
-
     const handleOpenCashingWallet = () => {
         openCustomWalletLogin();
     };
 
     const handleGetBitcoinAddress = () => {
-        const opened = window.open(CHING_APP_LOGIN_URL, '_blank', 'noopener,noreferrer');
-        if (!opened) {
-            window.location.assign(CHING_APP_LOGIN_URL);
-        }
+        openCustomWalletLogin();
     };
 
     const handleSaveHandle = async () => {
         if (!handle.trim() || !selectedMethod) return;
 
+        if (selectedMethod === 'crypto') {
+            if (!isValidAddressForTicker(handle, cryptoTicker)) {
+                toast.error(getAddressValidationMessage(cryptoTicker));
+                return;
+            }
+        }
+
         try {
             await dispatch(savePayoutMethod({ method: selectedMethod, handle })).unwrap();
             toast.success('Payout method saved!');
+
+            if (selectedMethod === 'crypto') {
+                setStep('amount');
+                dispatch(fetchPayoutMethods());
+                return;
+            }
 
             const flowLink = await dispatch(createPayoutMethodFlow()).unwrap();
             toast.success('Opening Dots to link your account...');
@@ -206,15 +267,82 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
         const apiDestination = destinationMap[selectedMethod || ''] || selectedMethod;
 
         try {
+            if (selectedMethod === 'crypto') {
+                if (!isValidAddressForTicker(handle, cryptoTicker)) {
+                    toast.error(getAddressValidationMessage(cryptoTicker));
+                    return;
+                }
+
+                const requestToastId = toast.loading('Withdrawal request submitted. Processing...');
+                setIsDirectProcessing(true);
+
+                try {
+                    const response = await api.post('/transactions/send-crypto', {
+                        toAddress: handle.trim(),
+                        amount: amountNum,
+                        ticker: cryptoTicker,
+                        isNative: false
+                    });
+
+                    await dispatch(fetchBalance());
+
+                    const isPending = response.status === 202 || response.data?.status === 'pending';
+                    setDirectCryptoStatus(isPending ? 'pending' : 'completed');
+
+                    toast.success(
+                        isPending
+                            ? 'Withdrawal submitted and is processing.'
+                            : `Withdrawal successful. Sent to your ${cryptoTicker} wallet.`,
+                        { id: requestToastId }
+                    );
+                    setStep('success');
+                    return;
+                } catch (directError: any) {
+                    const status = directError?.response?.status;
+                    const rawMessage = String(
+                        directError?.response?.data?.message
+                        || directError?.response?.data?.error
+                        || directError?.message
+                        || ''
+                    );
+                    const message = rawMessage.toLowerCase();
+
+                    // Compatibility path for older backend deployments that still emit 422 for chain/provider issues.
+                    const legacyRecoverable422 = status === 422 && (
+                        message.includes('crypto transfer failed')
+                        || message.includes('insufficient')
+                        || message.includes('provider')
+                        || message.includes('network')
+                        || message.includes('rpc')
+                        || message.includes('timeout')
+                    );
+
+                    if (legacyRecoverable422) {
+                        setDirectCryptoStatus('pending');
+                        toast.success('Withdrawal submitted and is processing.', { id: requestToastId });
+                        setStep('success');
+                        return;
+                    }
+
+                    toast.error(getErrorMessage(directError, 'Withdrawal failed'), { id: requestToastId });
+                    throw directError;
+                }
+            }
+
+            const payoutToastId = toast.loading('Withdrawal request submitted. Processing...');
+
             await dispatch(withdrawFunds({
                 amount: amountNum,
                 destination: apiDestination,
                 destinationDetails
             })).unwrap();
 
+            toast.success('Withdrawal request processed successfully', { id: payoutToastId });
             setStep('success');
         } catch (err) {
-            // Error handled by slice
+            toast.error(getErrorMessage(err, 'Withdrawal failed'));
+        } finally {
+            setIsDirectProcessing(false);
         }
     };
 
@@ -265,8 +393,8 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
         return names[type] || type;
     };
 
-    // Render KYC required banner
-    const needsVerification = !kycVerified || !dotsVerified;
+    // Direct crypto can proceed without Dots, but KYC is still required.
+    const needsVerification = !kycVerified;
     
     if (needsVerification) {
         return (
@@ -297,24 +425,6 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
                             </>
                         )}
                         
-                        {!dotsVerified && kycVerified && (
-                            <>
-                                <h3 className="text-white text-lg font-medium mb-2">Payment Verification Required</h3>
-                                <p className="text-[#8CA1C2] text-sm mb-4">
-                                    Your account needs additional verification for payouts. Status: {dotsStatus}
-                                </p>
-                                <button
-                                    onClick={handleVerifyDots}
-                                    disabled={isVerifying}
-                                    className="bg-[#82F764] text-black font-medium py-3 px-6 rounded-full hover:opacity-90 mb-4 disabled:opacity-50"
-                                >
-                                    {isVerifying ? <FiLoader className="animate-spin mx-auto" /> : 'Open Wallet Verification'}
-                                </button>
-                                <p className="text-[#8CA1C2] text-xs">
-                                    Click to open your wallet verification page in a new tab
-                                </p>
-                            </>
-                        )}
                     </div>
                 </div>
             </div>
@@ -338,42 +448,57 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
                     </button>
                 </div>
 
+                {!dotsVerified && (
+                    <div className="mb-4 rounded-xl border border-[#3C465E] bg-[#2A3244] p-3 text-sm text-[#8CA1C2]">
+                        Dots status: {dotsStatus}. You can still withdraw using Direct Crypto (no Dots).
+                        <button
+                            onClick={handleVerifyDots}
+                            disabled={isVerifying}
+                            className="ml-2 text-[#82F764] hover:underline disabled:opacity-50"
+                        >
+                            {isVerifying ? 'Opening...' : 'Verify Dots'}
+                        </button>
+                    </div>
+                )}
+
                 {/* Step: Select Method */}
                 {step === 'select' && (
                     <>
                         <div className="grid grid-cols-2 gap-3">
-                            {payoutMethods.map((method) => (
-                                <button
-                                    key={method.type}
-                                    onClick={() => handleSelectMethod(method.type)}
-                                    className="bg-[#2A3244] hover:bg-[#3A4254] rounded-xl p-4 text-center transition-colors relative"
-                                >
-                                    <div className={`w-12 h-12 mx-auto mb-2 rounded-full ${METHOD_COLORS[method.type] || 'bg-[#4A5568]'} flex items-center justify-center text-2xl`}>
-                                        {getProviderIcon(method.type)}
-                                    </div>
-                                    <p className="text-white text-sm font-medium">
-                                        {method.type === 'bank_account' ? 'Chime' : method.displayName}
-                                    </p>
-                                    {method.isLinked && (
-                                        <div className="absolute top-2 right-2 w-5 h-5 bg-[#82F764] rounded-full flex items-center justify-center">
-                                            <FiCheck className="text-black text-xs" />
+                            {payoutMethods.map((method) => {
+                                const methodDisabled = !dotsVerified && method.type !== 'crypto';
+
+                                return (
+                                    <button
+                                        key={method.type}
+                                        onClick={() => handleSelectMethod(method.type)}
+                                        disabled={methodDisabled}
+                                        className={`bg-[#2A3244] rounded-xl p-4 text-center transition-colors relative ${methodDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#3A4254]'}`}
+                                    >
+                                        <div className={`w-12 h-12 mx-auto mb-2 rounded-full ${METHOD_COLORS[method.type] || 'bg-[#4A5568]'} flex items-center justify-center text-2xl`}>
+                                            {getProviderIcon(method.type)}
                                         </div>
-                                    )}
-                                    {method.handle && (
-                                        <p className="text-[#8CA1C2] text-xs mt-1 truncate">{method.handle}</p>
-                                    )}
-                                </button>
-                            ))}
+                                        <p className="text-white text-sm font-medium">
+                                            {method.type === 'bank_account' ? 'Chime' : method.displayName}
+                                        </p>
+                                        {method.isLinked && (
+                                            <div className="absolute top-2 right-2 w-5 h-5 bg-[#82F764] rounded-full flex items-center justify-center">
+                                                <FiCheck className="text-black text-xs" />
+                                            </div>
+                                        )}
+                                        {method.handle && (
+                                            <p className="text-[#8CA1C2] text-xs mt-1 truncate">{method.handle}</p>
+                                        )}
+                                        {methodDisabled && (
+                                            <p className="text-[#8CA1C2] text-[10px] mt-1">Verify Dots</p>
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         {dotsVerified && (
                             <div className="mt-4 space-y-3">
-                                <button
-                                    onClick={handleAddPayoutMethodViaDots}
-                                    className="w-full bg-[#2A3244] hover:bg-[#3A4254] text-[#82F764] py-3 px-4 rounded-xl transition-colors text-sm"
-                                >
-                                    + Link a new payout account via Dots
-                                </button>
                                 <button
                                     onClick={handleOpenCashingWallet}
                                     className="w-full bg-[#2A3244] hover:bg-[#3A4254] text-white py-3 px-4 rounded-xl transition-colors text-sm"
@@ -394,14 +519,35 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
 
                         <input
                             type="text"
-                            placeholder={getHandlePlaceholder(selectedMethod)}
+                            placeholder={selectedMethod === 'crypto'
+                                ? getCryptoPlaceholder()
+                                : getHandlePlaceholder(selectedMethod)}
                             value={handle}
                             onChange={(e) => setHandle(e.target.value)}
+                            onPaste={handleWalletPaste}
                             className="w-full bg-[#2A3244] text-white placeholder-[#8CA1C2] px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-[#82F764]"
                         />
 
                         {selectedMethod === 'crypto' && (
                             <div className="space-y-2">
+                                <div className="space-y-2">
+                                    <p className="text-[#8CA1C2] text-xs px-1">Asset</p>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {(['BTC', 'ETH', 'USDT', 'USDC'] as CryptoTicker[]).map((tickerOption) => (
+                                            <button
+                                                key={tickerOption}
+                                                onClick={() => setCryptoTicker(tickerOption)}
+                                                className={`py-2 rounded-full text-xs transition-colors ${cryptoTicker === tickerOption ? 'bg-[#82F764] text-black font-medium' : 'bg-[#2A3244] text-white hover:bg-[#3A4254]'}`}
+                                            >
+                                                {tickerOption}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-[#8CA1C2] text-xs leading-relaxed px-1">
+                                        BTC uses bc1/1/3 addresses. ETH/USDT/USDC use 0x addresses.
+                                    </p>
+                                </div>
+
                                 <button
                                     onClick={handleGetBitcoinAddress}
                                     className="w-full bg-[#2A3244] hover:bg-[#3A4254] text-white py-3 px-4 rounded-full transition-colors text-sm"
@@ -500,6 +646,18 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
                                 <span className="text-[#8CA1C2]">Handle</span>
                                 <span className="text-white">{handle}</span>
                             </div>
+                            {selectedMethod === 'crypto' && (
+                                <>
+                                    <div className="flex justify-between">
+                                        <span className="text-[#8CA1C2]">Route</span>
+                                        <span className="text-white">Direct Crypto</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-[#8CA1C2]">Asset</span>
+                                        <span className="text-white">{cryptoTicker}</span>
+                                    </div>
+                                </>
+                            )}
                             <div className="border-t border-[#3C465E] pt-3 flex justify-between">
                                 <span className="text-[#8CA1C2]">New Balance</span>
                                 <span className="text-white font-medium">
@@ -517,10 +675,10 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
                             </button>
                             <button
                                 onClick={handleConfirmPayout}
-                                disabled={isLoading}
+                                disabled={isLoading || isDirectProcessing}
                                 className="flex-1 bg-[#82F764] text-black font-medium py-3 rounded-full hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                             >
-                                {isLoading ? (
+                                {(isLoading || isDirectProcessing) ? (
                                     <>
                                         <FiLoader className="animate-spin" />
                                         Processing...
@@ -541,7 +699,11 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
                         </div>
                         <h3 className="text-white text-xl font-semibold mb-2">Withdrawal Initiated!</h3>
                         <p className="text-[#8CA1C2] text-sm mb-6">
-                            ${parseFloat(amount).toFixed(2)} is on its way to your {formatMethodName(selectedMethod || '')} account.
+                            {selectedMethod === 'crypto'
+                                ? (directCryptoStatus === 'pending'
+                                    ? `$${parseFloat(amount).toFixed(2)} withdrawal was submitted for ${cryptoTicker} and is currently processing.`
+                                    : `$${parseFloat(amount).toFixed(2)} sent as ${cryptoTicker} to your wallet address.`)
+                                : `$${parseFloat(amount).toFixed(2)} is on its way to your ${formatMethodName(selectedMethod || '')} account.`}
                         </p>
                         <button
                             onClick={onClose}
