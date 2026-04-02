@@ -1,25 +1,59 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { FaPlus } from "react-icons/fa6";
+import { Trash2 } from "lucide-react";
 import api from "@/lib/api";
 import ConnectWalletModal from "../Modal/ConnectWalletModal";
+import { toast } from "react-hot-toast";
 
 import BitCoin from "../../public/assets/bit.png";
 import Eth from "../../public/assets/eth.png";
 
+type WalletMethod = {
+  _id: string;
+  type: string;
+  provider?: string;
+  details: string;
+};
+
 export default function LinkedWallets() {
-  const [wallets, setWallets] = useState<any[]>([]);
+  const [wallets, setWallets] = useState<WalletMethod[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [deletingWalletId, setDeletingWalletId] = useState<string | null>(null);
+
+  const notifyWalletsUpdated = () => {
+    window.dispatchEvent(new CustomEvent("crypto-wallets-updated"));
+  };
 
   const fetchWallets = async () => {
     try {
       const res = await api.get("/wallet/payment-methods");
       // Filter for crypto wallets
-      const cryptoWallets = res.data.filter((m: any) => m.type === 'crypto_wallet');
+      const cryptoWallets = res.data.filter((m: WalletMethod) => m.type === "crypto_wallet");
       setWallets(cryptoWallets);
     } catch (error) {
       console.error(error);
     }
+  };
+
+  const handleUnlinkWallet = async (walletId: string) => {
+    setDeletingWalletId(walletId);
+    try {
+      await api.delete(`/wallet/payment-methods/${walletId}`);
+      toast.success("Wallet unlinked");
+      await fetchWallets();
+      notifyWalletsUpdated();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to unlink wallet");
+    } finally {
+      setDeletingWalletId(null);
+    }
+  };
+
+  const handleWalletConnected = async () => {
+    await fetchWallets();
+    notifyWalletsUpdated();
   };
 
   useEffect(() => {
@@ -38,7 +72,7 @@ export default function LinkedWallets() {
         {wallets.length === 0 ? (
           <p className="text-sm text-gray-500 text-center py-2">No linked wallets</p>
         ) : (
-          wallets.map((wallet: any) => (
+          wallets.map((wallet) => (
             <div
               key={wallet._id}
               className="flex items-center justify-between rounded-xl bg-[#202736] border border-[#394150] px-2 py-2"
@@ -62,9 +96,20 @@ export default function LinkedWallets() {
               </div>
 
               {/* Right */}
-              <span className="rounded-full bg-[#2B3343] px-3 py-1 text-xs font-DMSans text-[#82F764]">
-                Connected
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-[#2B3343] px-3 py-1 text-xs font-DMSans text-[#82F764]">
+                  Connected
+                </span>
+                <button
+                  onClick={() => handleUnlinkWallet(wallet._id)}
+                  disabled={deletingWalletId === wallet._id}
+                  className="rounded-full bg-[#2B3343] p-2 text-[#ff8b8b] hover:text-[#ff6f6f] disabled:opacity-50"
+                  aria-label="Unlink wallet"
+                  title="Unlink wallet"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
           ))
         )}
@@ -85,7 +130,7 @@ export default function LinkedWallets() {
       <ConnectWalletModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        onConnected={() => fetchWallets()}
+        onConnected={handleWalletConnected}
       />
     </div>
   );

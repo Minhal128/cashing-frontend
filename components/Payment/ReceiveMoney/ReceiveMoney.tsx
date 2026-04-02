@@ -1,5 +1,4 @@
 import DepositCrypto from "./DepositCrypto";
-import OtherPaymentMethod from "./OtherPaymentMethod";
 import QRCode from "./QRCode";
 import RecentTransaction from "./RecentTransaction";
 
@@ -21,10 +20,6 @@ export default function ReceiveMoney() {
           <div className="flex flex-col gap-4">
             <div className="h-fit">
               <DepositCrypto />
-            </div>
-
-            <div className="h-fit">
-              <OtherPaymentMethod />
             </div>
           </div>
         </div>

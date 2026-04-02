@@ -2,6 +2,7 @@
 
 import LinkedBanks from "../Wallet/LinkedBanks";
 import LinkedWallets from "../Wallet/LinkedWallets";
+import CryptoWalletOverview from "../Wallet/CryptoWalletOverview";
 import RecentActivities from "../Wallet/RecentActivities";
 import WalletBalanceCard from "../Wallet/WalletBalanceCard";
 
@@ -21,6 +22,8 @@ export default function WalletPage({ setActivePage }: { setActivePage: (page: st
         <LinkedBanks />
         <LinkedWallets />
       </div>
+
+      <CryptoWalletOverview />
 
       <RecentActivities />
     </div>

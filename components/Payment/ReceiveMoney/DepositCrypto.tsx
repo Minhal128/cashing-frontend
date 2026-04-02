@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+import Image, { type StaticImageData } from "next/image";
 import { Copy } from "lucide-react";
+import type { AxiosError } from "axios";
 import Bitimg from "../../../public/assets/bit.png";
 import Ethimg from "../../../public/assets/eth.png";
 import Timg from "../../../public/assets/t.png";
@@ -9,33 +10,179 @@ import { toast } from "react-hot-toast";
 import { useConnectCryptoWallet } from "@/lib/reown/useConnectCryptoWallet";
 
 const CHING_APP_LOGIN_URL = "https://chingapp.club/login.php";
+const BTC_ADDRESS_REGEX = /^(bc1|tb1|bcrt1)[ac-hj-np-z02-9]{11,71}$|^(1|3|m|n|2)[a-km-zA-HJ-NP-Z1-9]{25,39}$/i;
+
+type BtcWalletValue = {
+  wallet: string;
+  ticker: string;
+  balance: number;
+  balanceFormatted: string;
+  usdValue: number;
+  usdValueFormatted: string;
+  usdRate: number;
+  fetchedAt: string;
+  source: string;
+};
+
+type DepositAddress = {
+  name: string;
+  address: string;
+  ticker: string;
+  isDynamic?: boolean;
+  type?: string;
+};
+
+type DepositAddressWithIcon = DepositAddress & {
+  icon: StaticImageData;
+};
+
+type DepositAddressesPayload = {
+  addresses?: DepositAddress[];
+  isMetaConnected?: boolean;
+  isBtcConnected?: boolean;
+};
+
+type ApiErrorPayload = {
+  message?: string;
+};
+
+const getLocalBtcWalletValue = async (address: string): Promise<BtcWalletValue> => {
+  const response = await fetch(`/api/btc-wallet-value?address=${encodeURIComponent(address)}`);
+  const payload = (await response.json()) as Partial<BtcWalletValue> & ApiErrorPayload;
+
+  if (!response.ok) {
+    throw new Error(payload.message || "Failed to fetch BTC balance");
+  }
+
+  return payload as BtcWalletValue;
+};
+
+const isValidBtcAddress = (address: string) => {
+  const normalized = address.trim();
+  if (!normalized) return false;
+
+  const isMixedCase =
+    normalized !== normalized.toLowerCase() && normalized !== normalized.toUpperCase();
+
+  if (isMixedCase && normalized.toLowerCase().startsWith("bc1")) {
+    return false;
+  }
+
+  return BTC_ADDRESS_REGEX.test(normalized);
+};
 
 export default function DepositCrypto() {
-  const [cryptoList, setCryptoList] = useState<any[]>([]);
+  const [cryptoList, setCryptoList] = useState<DepositAddressWithIcon[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isMetaConnected, setIsMetaConnected] = useState(false);
   const [isBtcConnected, setIsBtcConnected] = useState(false);
   const [showBtcInput, setShowBtcInput] = useState(false);
   const [btcAddressInput, setBtcAddressInput] = useState("");
+  const [btcWalletValue, setBtcWalletValue] = useState<BtcWalletValue | null>(null);
+  const [btcValueError, setBtcValueError] = useState("");
+  const [fetchingBtcValue, setFetchingBtcValue] = useState(false);
   const [linking, setLinking] = useState(false);
   const { connectAndLinkWallet, isLinking } = useConnectCryptoWallet();
+  const btcLookupTimerRef = useRef<number | null>(null);
+
+  const clearBtcLookupTimer = () => {
+    if (btcLookupTimerRef.current !== null) {
+      window.clearTimeout(btcLookupTimerRef.current);
+      btcLookupTimerRef.current = null;
+    }
+  };
+
+  const fetchBtcWalletValue = async (address: string) => {
+    setFetchingBtcValue(true);
+    setBtcValueError("");
+
+    try {
+      const response = await api.get("/transactions/btc-wallet-value", {
+        params: { address },
+      });
+
+      setBtcWalletValue(response.data);
+    } catch (error: unknown) {
+      const axiosError = error as AxiosError<ApiErrorPayload>;
+
+      // Fallback: some deployed backend builds may not include /transactions/btc-wallet-value yet.
+      if (axiosError.response?.status === 404) {
+        try {
+          const fallbackValue = await getLocalBtcWalletValue(address);
+          setBtcWalletValue(fallbackValue);
+          return;
+        } catch (fallbackError: unknown) {
+          const message =
+            fallbackError instanceof Error
+              ? fallbackError.message
+              : "Failed to fetch BTC balance";
+          setBtcWalletValue(null);
+          setBtcValueError(message);
+          return;
+        }
+      }
+
+      setBtcWalletValue(null);
+      setBtcValueError(axiosError.response?.data?.message || "Failed to fetch BTC balance");
+    } finally {
+      setFetchingBtcValue(false);
+    }
+  };
+
+  const scheduleBtcLookup = (value: string) => {
+    const normalizedAddress = value.trim();
+
+    clearBtcLookupTimer();
+    setBtcWalletValue(null);
+    setBtcValueError("");
+
+    if (!normalizedAddress) {
+      setFetchingBtcValue(false);
+      return;
+    }
+
+    if (!isValidBtcAddress(normalizedAddress)) {
+      setFetchingBtcValue(false);
+
+      if (normalizedAddress.length >= 14) {
+        setBtcValueError("Enter a valid BTC address to fetch current value.");
+      }
+
+      return;
+    }
+
+    setFetchingBtcValue(true);
+    btcLookupTimerRef.current = window.setTimeout(() => {
+      fetchBtcWalletValue(normalizedAddress);
+    }, 500);
+  };
 
   const fetchAddresses = async () => {
     setLoading(true);
     setError(false);
     try {
       const response = await api.get("/transactions/deposit-addresses");
-      // Handle the new response format
-      const addresses = response.data.addresses || response.data;
-      const metaConnected = response.data.isMetaConnected !== undefined ? response.data.isMetaConnected : false;
-      const btcConnected = response.data.isBtcConnected !== undefined ? response.data.isBtcConnected : false;
+      const payload = response.data as DepositAddressesPayload | DepositAddress[];
+
+      // Handle both legacy array and object payload responses.
+      const addresses = Array.isArray(payload) ? payload : payload.addresses || [];
+      const metaConnected = Array.isArray(payload)
+        ? false
+        : payload.isMetaConnected !== undefined
+          ? payload.isMetaConnected
+          : false;
+      const btcConnected = Array.isArray(payload)
+        ? false
+        : payload.isBtcConnected !== undefined
+          ? payload.isBtcConnected
+          : false;
 
       setIsMetaConnected(metaConnected);
       setIsBtcConnected(btcConnected);
 
       // Map icons to the response
-      const dataWithIcons = addresses.map((item: any) => ({
+      const dataWithIcons = addresses.map((item) => ({
         ...item,
         icon: item.ticker === 'BTC' ? Bitimg : item.ticker === 'ETH' ? Ethimg : Timg
       }));
@@ -49,7 +196,9 @@ export default function DepositCrypto() {
   };
 
   const handleLinkBtc = async () => {
-    if (!btcAddressInput.trim()) {
+    const normalizedAddress = btcAddressInput.trim();
+
+    if (!normalizedAddress || !isValidBtcAddress(normalizedAddress)) {
       toast.error("Please enter a valid BTC address");
       return;
     }
@@ -59,14 +208,16 @@ export default function DepositCrypto() {
       await api.post("/wallet/payment-methods", {
         type: "crypto_wallet",
         provider: "Bitcoin",
-        details: btcAddressInput.trim(),
+        details: normalizedAddress,
       });
 
       toast.success("Bitcoin address linked!");
       setShowBtcInput(false);
       setBtcAddressInput("");
+      setBtcWalletValue(null);
+      setBtcValueError("");
       fetchAddresses();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
       toast.error("Linking failed");
     } finally {
@@ -78,7 +229,7 @@ export default function DepositCrypto() {
     try {
       await connectAndLinkWallet();
       fetchAddresses(); // Refresh addresses
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
     }
   };
@@ -90,8 +241,30 @@ export default function DepositCrypto() {
     }
   };
 
+  const handleToggleBtcInput = () => {
+    setShowBtcInput((previous) => {
+      const next = !previous;
+
+      if (!next) {
+        clearBtcLookupTimer();
+        setBtcAddressInput("");
+        setBtcWalletValue(null);
+        setBtcValueError("");
+        setFetchingBtcValue(false);
+      }
+
+      return next;
+    });
+  };
+
   useEffect(() => {
     fetchAddresses();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearBtcLookupTimer();
+    };
   }, []);
 
   const copyToClipboard = (text: string) => {
@@ -119,7 +292,7 @@ export default function DepositCrypto() {
               )}
               {!isBtcConnected && (
                 <button
-                  onClick={() => setShowBtcInput(!showBtcInput)}
+                  onClick={handleToggleBtcInput}
                   className="text-[10px] bg-[#F7931A] hover:bg-[#E38114] text-white px-3 py-1.5 rounded-full font-bold uppercase tracking-wider transition cursor-pointer"
                 >
                   {showBtcInput ? "Cancel" : "Link Bitcoin"}
@@ -136,7 +309,11 @@ export default function DepositCrypto() {
                   type="text"
                   placeholder="Enter your BTC address (bc1q...)"
                   value={btcAddressInput}
-                  onChange={(e) => setBtcAddressInput(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setBtcAddressInput(value);
+                    scheduleBtcLookup(value);
+                  }}
                   className="flex-1 bg-transparent border-none outline-none text-xs font-DMSans text-white px-2 h-8"
                 />
                 <button
@@ -157,6 +334,41 @@ export default function DepositCrypto() {
               <p className="text-[11px] font-DMSans text-gray-300 px-2">
                 Login to ChingApp to get your Bitcoin wallet address, then copy and paste it here.
               </p>
+
+              {fetchingBtcValue && (
+                <p className="text-[11px] font-DMSans text-[#82F764] px-2">
+                  Fetching current BTC balance...
+                </p>
+              )}
+
+              {btcValueError && (
+                <p className="text-[11px] font-DMSans text-[#ff8b8b] px-2">
+                  {btcValueError}
+                </p>
+              )}
+
+              {btcWalletValue && (
+                <div className="mx-2 rounded-lg border border-[#82F764]/30 bg-[#111827] p-3 space-y-2">
+                  <p className="text-[10px] font-DMSans text-[#82F764] font-bold uppercase tracking-wide">
+                    Live BTC Snapshot
+                  </p>
+                  <p className="text-[11px] font-DMSans text-gray-300 break-all">
+                    {btcWalletValue.wallet}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-DMSans text-gray-400">Balance</p>
+                    <p className="text-[11px] font-DMSans text-white font-semibold">
+                      {btcWalletValue.balanceFormatted}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-DMSans text-gray-400">Value</p>
+                    <p className="text-[11px] font-DMSans text-white font-semibold">
+                      {btcWalletValue.usdValueFormatted}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
