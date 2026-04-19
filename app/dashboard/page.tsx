@@ -11,6 +11,7 @@ import WalletPage from "@/components/Dashboard/WalletPage";
 import ActivityPage from "@/components/Dashboard/ActivityPage";
 import AccountPage from "@/components/Dashboard/AccountPage";
 import CardPage from "@/components/Dashboard/CardPage";
+import SupportPage from "@/components/Dashboard/SupportPage";
 
 export default function DashboardLayout() {
   const [activePage, setActivePage] = useState("dashboard");
@@ -35,6 +36,8 @@ export default function DashboardLayout() {
         return <CardPage />;
       case "account":
         return <AccountPage />;
+      case "support":
+        return <SupportPage />;
       default:
         return null;
     }

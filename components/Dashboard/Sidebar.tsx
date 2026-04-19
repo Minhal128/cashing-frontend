@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import type { StaticImageData } from "next/image";
 import {
   LayoutDashboard,
   CreditCard,
   Wallet,
   Activity,
   User,
+  LifeBuoy,
   X,
   ChevronRight,
+  type LucideIcon,
 } from "lucide-react";
 import { BiLogOut } from "react-icons/bi";
 
@@ -44,7 +47,15 @@ interface SidebarProps {
   setIsMobileOpen: (val: boolean) => void;
 }
 
-const items = [
+interface SidebarItem {
+  id: string;
+  label: string;
+  activeImage?: StaticImageData;
+  inactiveImage?: StaticImageData;
+  fallbackIcon: LucideIcon;
+}
+
+const items: SidebarItem[] = [
   {
     id: "dashboard",
     label: "Dashboard",
@@ -86,6 +97,11 @@ const items = [
     activeImage: accountActive,
     inactiveImage: accountInactive,
     fallbackIcon: User,
+  },
+  {
+    id: "support",
+    label: "Support",
+    fallbackIcon: LifeBuoy,
   },
 ];
 
@@ -157,12 +173,16 @@ export default function Sidebar({
                     : "w-12 h-12 justify-center"
                 }`}
               >
-                <Image
-                  src={isActive ? item.activeImage : item.inactiveImage}
-                  alt={item.label}
-                  width={18}
-                  height={18}
-                />
+                {item.activeImage && item.inactiveImage ? (
+                  <Image
+                    src={isActive ? item.activeImage : item.inactiveImage}
+                    alt={item.label}
+                    width={18}
+                    height={18}
+                  />
+                ) : (
+                  <item.fallbackIcon className="h-[18px] w-[18px]" />
+                )}
 
                 {isOpen && <span className="text-sm">{item.label}</span>}
               </button>
@@ -223,12 +243,16 @@ export default function Sidebar({
                       : "text-gray-400 hover:bg-white/10 hover:text-white"
                   } gap-3 px-3 py-3`}
                 >
-                  <Image
-                    src={isActive ? item.activeImage : item.inactiveImage}
-                    alt={item.label}
-                    width={18}
-                    height={18}
-                  />
+                  {item.activeImage && item.inactiveImage ? (
+                    <Image
+                      src={isActive ? item.activeImage : item.inactiveImage}
+                      alt={item.label}
+                      width={18}
+                      height={18}
+                    />
+                  ) : (
+                    <item.fallbackIcon className="h-[18px] w-[18px]" />
+                  )}
                   <span className="text-sm">{item.label}</span>
                 </button>
               );
