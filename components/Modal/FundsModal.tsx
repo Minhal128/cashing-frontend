@@ -69,22 +69,6 @@ const ApplePayIcon = () => (
   </svg>
 );
 
-// Credit Card Icon Component
-const CreditCardIcon = () => (
-  <svg viewBox="0 0 32 32" className="w-8 h-8" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="2" y="6" width="28" height="20" rx="3" fill="url(#cardGradient)"/>
-    <rect x="2" y="11" width="28" height="4" fill="#000" opacity="0.3"/>
-    <rect x="5" y="19" width="10" height="2" rx="1" fill="#fff" opacity="0.8"/>
-    <rect x="17" y="19" width="10" height="2" rx="1" fill="#fff" opacity="0.8"/>
-    <defs>
-      <linearGradient id="cardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#667EEA"/>
-        <stop offset="100%" stopColor="#764BA2"/>
-      </linearGradient>
-    </defs>
-  </svg>
-);
-
 // Detect if Apple Pay is available (Safari on macOS/iOS only)
 const isApplePayAvailable = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -100,27 +84,20 @@ interface PaymentOption {
   iconType: 'image' | 'component';
   bgColor: string;
   description: string;
+  disabled?: boolean;
 }
 
-// Get card payment option based on device
+// Get card payment option - always show Apple Pay, disable on non-Apple devices
 const getCardPaymentOption = (): PaymentOption => {
-  if (isApplePayAvailable()) {
-    return {
-      id: 'card',
-      name: 'Apple Pay',
-      icon: ApplePayIcon,
-      iconType: 'component',
-      bgColor: 'bg-gradient-to-br from-[#1A1A1A] to-[#000000]',
-      description: 'Pay with Apple Pay'
-    };
-  }
+  const applePayAvailable = isApplePayAvailable();
   return {
     id: 'card',
-    name: 'Credit/Debit Card',
-    icon: CreditCardIcon,
+    name: 'Apple Pay',
+    icon: ApplePayIcon,
     iconType: 'component',
-    bgColor: 'bg-gradient-to-br from-[#667EEA] to-[#764BA2]',
-    description: 'Visa, Mastercard, Discover'
+    bgColor: 'bg-gradient-to-br from-[#1A1A1A] to-[#000000]',
+    description: applePayAvailable ? 'Pay with Apple Pay' : 'Only available on Apple devices',
+    disabled: !applePayAvailable
   };
 };
 
@@ -559,10 +536,15 @@ export default function FundsModal({
               {PAYMENT_OPTIONS.map((option) => (
                 <button
                   key={option.id}
-                  onClick={() => handleSelectMethod(option.id)}
-                  className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#82F764]/40 rounded-2xl p-5 flex items-center gap-4 transition-all duration-300 group hover:shadow-lg hover:shadow-[#82F764]/10 hover:scale-[1.02]"
+                  onClick={() => !option.disabled && handleSelectMethod(option.id)}
+                  disabled={option.disabled}
+                  className={`w-full rounded-2xl p-5 flex items-center gap-4 transition-all duration-300 group ${
+                    option.disabled 
+                      ? 'bg-white/5 border border-white/10 cursor-not-allowed opacity-50' 
+                      : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#82F764]/40 hover:shadow-lg hover:shadow-[#82F764]/10 hover:scale-[1.02]'
+                  }`}
                 >
-                  <div className={`w-16 h-16 ${option.bgColor} rounded-xl flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-all duration-300 group-hover:shadow-2xl`}>
+                  <div className={`w-16 h-16 ${option.bgColor} rounded-xl flex items-center justify-center shadow-lg ${option.disabled ? '' : 'transform group-hover:scale-110 transition-all duration-300 group-hover:shadow-2xl'}`}>
                     {option.iconType === 'image' ? (
                       <Image 
                         src={option.icon} 
@@ -576,13 +558,19 @@ export default function FundsModal({
                     )}
                   </div>
                   <div className="flex-1 text-left">
-                    <p className="text-white font-semibold text-lg group-hover:text-[#82F764] transition-colors">{option.name}</p>
-                    <p className="text-gray-400 text-sm mt-0.5">{option.description}</p>
+                    <p className={`font-semibold text-lg transition-colors ${option.disabled ? 'text-gray-500' : 'text-white group-hover:text-[#82F764]'}`}>{option.name}</p>
+                    <p className={`text-sm mt-0.5 ${option.disabled ? 'text-gray-600' : 'text-gray-400'}`}>{option.description}</p>
                   </div>
-                  <div className="text-gray-500 group-hover:text-[#82F764] transition-colors">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                    </svg>
+                  <div className={`transition-colors ${option.disabled ? 'text-gray-700' : 'text-gray-500 group-hover:text-[#82F764]'}`}>
+                    {option.disabled ? (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                      </svg>
+                    )}
                   </div>
                 </button>
               ))}
