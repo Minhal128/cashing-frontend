@@ -12,13 +12,26 @@ interface PlaidLinkProps {
 
 export default function PlaidLink({ onSuccess, variant = 'primary' }: PlaidLinkProps) {
     const [token, setToken] = useState<string | null>(null);
+    const [plaidAvailable, setPlaidAvailable] = useState(true);
 
     useEffect(() => {
         const createLinkToken = async () => {
             try {
                 const response = await api.post('/plaid/create-link-token');
                 setToken(response.data.link_token);
-            } catch (error) {
+            } catch (error: unknown) {
+                const status =
+                    typeof error === 'object' &&
+                    error !== null &&
+                    'response' in error
+                        ? (error as { response?: { status?: number } }).response?.status
+                        : undefined;
+
+                if (status === 404) {
+                    setPlaidAvailable(false);
+                    return;
+                }
+
                 console.error('Error creating Plaid link token:', error);
                 toast.error('Failed to initialize bank link');
             }
@@ -27,7 +40,7 @@ export default function PlaidLink({ onSuccess, variant = 'primary' }: PlaidLinkP
         createLinkToken();
     }, []);
 
-    const handleOnSuccess = useCallback(async (public_token: string, metadata: any) => {
+    const handleOnSuccess = useCallback(async (public_token: string, metadata: unknown) => {
         try {
             await api.post('/plaid/exchange-public-token', {
                 public_token,
@@ -47,6 +60,10 @@ export default function PlaidLink({ onSuccess, variant = 'primary' }: PlaidLinkP
     };
 
     const { open, ready } = usePlaidLink(config);
+
+    if (!plaidAvailable) {
+        return null;
+    }
 
     if (variant === 'link') {
         return (

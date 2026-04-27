@@ -28,14 +28,28 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         const fetchUserCurrency = async () => {
+            if (typeof window !== 'undefined' && !localStorage.getItem('token')) {
+                setIsLoading(false);
+                return;
+            }
+
             try {
                 const res = await api.get('/wallet/profile');
                 const userCurrency = res.data.currency as Currency;
                 if (userCurrency && ['USD', 'EUR', 'GBP', 'PKR'].includes(userCurrency)) {
                     setCurrencyState(userCurrency);
                 }
-            } catch (error) {
-                console.error('Failed to fetch user currency:', error);
+            } catch (error: unknown) {
+                const isUnauthorized =
+                    typeof error === 'object' &&
+                    error !== null &&
+                    'response' in error &&
+                    typeof (error as { response?: { status?: number } }).response?.status === 'number' &&
+                    (error as { response?: { status?: number } }).response?.status === 401;
+
+                if (!isUnauthorized) {
+                    console.error('Failed to fetch user currency:', error);
+                }
                 // Keep default USD
             } finally {
                 setIsLoading(false);
