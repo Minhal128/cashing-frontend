@@ -293,67 +293,76 @@ function UserForm({
   );
 }
 
-import PlaidLink from "../../Wallet/PlaidLink";
-
 function BankForm({ onRefresh, selectedCurrency, onCurrencyChange, amount, setAmount }: any) {
-  const [bankName, setBankName] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [routingNumber, setRoutingNumber] = useState("");
+  const [cardholderName, setCardholderName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [cvc, setCvc] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
-  const [linkedBanks, setLinkedBanks] = useState<any[]>([]);
-  const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
-  const [isManual, setIsManual] = useState(false);
+  const [savedCards, setSavedCards] = useState<any[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
-  const fetchLinkedBanks = async () => {
+  const fetchSavedCards = async () => {
     try {
       const res = await api.get("/wallet/payment-methods");
-      const banks = res.data.filter((m: any) => m.type === 'bank');
-      setLinkedBanks(banks);
-      if (banks.length > 0 && !isManual) {
-        setSelectedBankId(banks[0]._id);
+      const cards = res.data.filter((m: any) => m.type === "card");
+      setSavedCards(cards);
+      if (cards.length > 0) {
+        setSelectedCardId(cards[0]._id);
       }
     } catch (error) {
-      console.error("Failed to fetch banks", error);
+      console.error("Failed to fetch cards", error);
     }
   };
 
   useState(() => {
-    fetchLinkedBanks();
+    fetchSavedCards();
   });
 
+  const formatCardNumber = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 16);
+    return digits.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+  };
+
+  const formatExpiry = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 4);
+    if (digits.length <= 2) return digits;
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  };
+
   const handleSubmit = async () => {
-    if (!isManual && !selectedBankId) {
-      toast.error("Please select a bank account or use manual input");
-      return;
-    }
-    if (isManual && (!bankName || !accountNumber || !routingNumber)) {
-      toast.error("Please fill in manual bank details");
-      return;
-    }
     if (!amount) {
       toast.error("Please enter an amount");
       return;
     }
 
+    const hasSavedCard = !!selectedCardId;
+    const hasManualCardDetails =
+      cardholderName.trim().length > 2 &&
+      cardNumber.replace(/\s/g, "").length === 16 &&
+      expiry.length === 5 &&
+      cvc.length >= 3;
+
+    if (!hasSavedCard && !hasManualCardDetails) {
+      toast.error("Enter Chime card details");
+      return;
+    }
+
     setLoading(true);
     try {
-      const selectedBank = linkedBanks.find(b => b._id === selectedBankId);
       await api.post("/transactions/withdraw", {
         amount: parseFloat(amount),
-        accountNumber: isManual ? accountNumber : undefined,
-        routingNumber: isManual ? routingNumber : undefined,
-        paymentMethodId: !isManual ? selectedBankId : undefined,
-        description: isManual ? `Withdrawal to ${bankName}: ${description}` : `Withdrawal to ${selectedBank?.provider}: ${description}`,
+        paymentMethodId: selectedCardId || undefined,
+        description: `Send to Chime${description ? `: ${description}` : ""}`,
         currency: selectedCurrency.code
       });
-      toast.success("Bank withdrawal successful!");
+      toast.success("Chime transfer successful!");
       // Reset
-      if (isManual) {
-        setBankName("");
-        setAccountNumber("");
-        setRoutingNumber("");
-      }
+      setCardholderName("");
+      setCardNumber("");
+      setExpiry("");
+      setCvc("");
       setAmount("");
       setDescription("");
       onRefresh?.();
@@ -368,52 +377,34 @@ function BankForm({ onRefresh, selectedCurrency, onCurrencyChange, amount, setAm
 
   return (
     <div className="space-y-4">
-      {linkedBanks.length > 0 && !isManual ? (
+      {savedCards.length > 0 ? (
         <div className="space-y-3">
-          <label className="text-xs font-DMSans text-gray-400 px-1">Choose linked bank:</label>
+          <label className="text-xs font-DMSans text-gray-400 px-1">Choose saved card:</label>
           <div className="space-y-2">
-            {linkedBanks.map((bank) => (
+            {savedCards.map((card) => (
               <div
-                key={bank._id}
-                onClick={() => setSelectedBankId(bank._id)}
-                className={`flex items-center justify-between p-3 rounded-xl border transition cursor-pointer ${selectedBankId === bank._id ? 'bg-[#202736] border-[#82F764]' : 'bg-[#111827] border-[#2B3343] hover:border-gray-600'
+                key={card._id}
+                onClick={() => setSelectedCardId(card._id)}
+                className={`flex items-center justify-between p-3 rounded-xl border transition cursor-pointer ${selectedCardId === card._id ? 'bg-[#202736] border-[#82F764]' : 'bg-[#111827] border-[#2B3343] hover:border-gray-600'
                   }`}
               >
                 <div className="flex flex-col">
-                  <span className="text-sm font-DMSans font-medium text-white">{bank.provider}</span>
-                  <span className="text-[10px] text-gray-500 uppercase">{bank.details}</span>
+                  <span className="text-sm font-DMSans font-medium text-white capitalize">{card.provider || "Card"}</span>
+                  <span className="text-[10px] text-gray-500 uppercase">Ending in {card.details || "****"}</span>
                 </div>
-                {selectedBankId === bank._id && <div className="w-2 h-2 rounded-full bg-[#82F764]" />}
+                {selectedCardId === card._id && <div className="w-2 h-2 rounded-full bg-[#82F764]" />}
               </div>
             ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setIsManual(true)} className="text-[11px] text-[#82F764] hover:underline font-DMSans">
-              Enter bank details manually
-            </button>
-            <span className="text-[11px] text-gray-600">|</span>
-            <PlaidLink variant="link" onSuccess={fetchLinkedBanks} />
           </div>
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex justify-between items-center px-1">
-            <h3 className="text-sm font-DMSans text-white">{isManual ? 'Manual Bank Entry' : 'No linked banks'}</h3>
-            {isManual && linkedBanks.length > 0 && (
-              <button onClick={() => setIsManual(false)} className="text-[11px] text-[#82F764] hover:underline font-DMSans transition-all">
-                Show linked banks
-              </button>
-            )}
-          </div>
-          {isManual && (
-            <>
-              <Input placeholder="Bank name" value={bankName} onChange={(e: any) => setBankName(e.target.value)} />
-              <Input placeholder="Account number / IBAN" value={accountNumber} onChange={(e: any) => setAccountNumber(e.target.value)} />
-              <Input placeholder="Routing number / BIC" value={routingNumber} onChange={(e: any) => setRoutingNumber(e.target.value)} />
-            </>
-          )}
-          <div className="py-1 px-1">
-            <PlaidLink variant={isManual ? 'link' : 'primary'} onSuccess={fetchLinkedBanks} />
+          <h3 className="text-sm font-DMSans text-white px-1">Enter Chime card details</h3>
+          <Input placeholder="Name on card" value={cardholderName} onChange={(e: any) => setCardholderName(e.target.value)} />
+          <Input placeholder="Card number" value={cardNumber} onChange={(e: any) => setCardNumber(formatCardNumber(e.target.value))} />
+          <div className="grid grid-cols-2 gap-2">
+            <Input placeholder="MM/YY" value={expiry} onChange={(e: any) => setExpiry(formatExpiry(e.target.value))} />
+            <Input placeholder="CVC" value={cvc} onChange={(e: any) => setCvc(e.target.value.replace(/\D/g, "").slice(0, 4))} />
           </div>
         </div>
       )}

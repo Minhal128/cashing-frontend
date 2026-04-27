@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import Image from "next/image";
-import { FaPlus } from "react-icons/fa6";
-import PlaidLink from "./PlaidLink";
 
 import VisaLogo from "../../public/assets/visa.png";
 import AmexLogo from "../../public/assets/amex.png";
@@ -37,10 +35,6 @@ export default function LinkedBanks() {
     };
     fetchBanks();
   }, [refreshKey]);
-
-  const handleLinkSuccess = () => {
-    setRefreshKey(prev => prev + 1);
-  };
 
   return (
     <div className="w-full rounded-2xl bg-[#111827] border border-[#2B3343] px-3 py-4 text-white shadow-xl">
@@ -86,10 +80,9 @@ export default function LinkedBanks() {
         )}
       </div>
 
-      {/* Add Bank Button (Plaid) */}
-      <div className="mt-3">
-        <PlaidLink onSuccess={handleLinkSuccess} />
-      </div>
+      <p className="text-xs text-gray-500 mt-3">
+        Bank linking is currently disabled in this flow.
+      </p>
     </div>
   );
 }
