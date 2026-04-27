@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import { Trash2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 import api from "@/lib/api";
 
 import ChipImg from "@/public/assets/chip.png";
@@ -82,6 +84,23 @@ const CardSection: React.FC = () => {
   const [cards, setCards] = useState<any[]>([]);
   const [balance, setBalance] = useState(0);
   const [userName, setUserName] = useState("User");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const deleteCard = async (cardId: string) => {
+    if (!confirm("Are you sure you want to remove this card?")) return;
+    
+    setDeletingId(cardId);
+    try {
+      await api.delete(`/wallet/payment-methods/${cardId}`);
+      toast.success("Card removed successfully!");
+      setCards(cards.filter(c => c._id !== cardId));
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Failed to remove card");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   useEffect(() => {
     const fetchCardsData = async () => {
@@ -117,7 +136,7 @@ const CardSection: React.FC = () => {
             <div className="text-gray-500 py-4">No cards added yet. Add one below.</div>
           ) : (
             cards.map((card, i) => (
-              <div key={card._id} className="flex justify-center">
+              <div key={card._id} className="flex flex-col items-center gap-3">
                 <CreditCard
                   className={`bg-linear-to-br ${i % 2 === 0 ? 'from-[#2D60FF] via-[#539BFF] to-blue-700' : 'from-[#4C49ED] via-[#0A06F4] to-[#4C49ED]'}`}
                   balance={balance}
@@ -125,6 +144,14 @@ const CardSection: React.FC = () => {
                   cardHolder={userName}
                   validThru="12/28"
                 />
+                <button
+                  onClick={() => deleteCard(card._id)}
+                  disabled={deletingId === card._id}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Trash2 size={16} />
+                  {deletingId === card._id ? "Removing..." : "Remove Card"}
+                </button>
               </div>
             ))
           )}
