@@ -1,18 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { FiX, FiCreditCard, FiDollarSign, FiLoader, FiCheck, FiChevronLeft } from 'react-icons/fi';
-import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
-import { depositFunds, fetchBalance, selectIsLoading } from '@/lib/store/walletSlice';
+import { FiX, FiLoader, FiCheck, FiChevronLeft } from 'react-icons/fi';
+import { useAppDispatch } from '@/lib/store/hooks';
+import { fetchBalance } from '@/lib/store/walletSlice';
 import { toast } from 'react-hot-toast';
-import Image from 'next/image';
 
 interface AddFundsModalProps {
     onClose: () => void;
 }
 
-type PaymentMethod = 'card' | 'cashapp' | 'venmo' | 'paypal' | 'current';
-type Step = 'select' | 'amount' | 'processing' | 'success';
+type PaymentMethod = 'cashapp' | 'venmo' | 'paypal' | 'chime' | 'applepay';
+type Step = 'select' | 'amount' | 'cardDetails' | 'processing' | 'success';
 
 interface PaymentOption {
     id: PaymentMethod;
@@ -24,14 +23,6 @@ interface PaymentOption {
 }
 
 const PAYMENT_OPTIONS: PaymentOption[] = [
-    {
-        id: 'card',
-        name: 'Debit Card',
-        icon: '💳',
-        color: '#6366F1',
-        bgColor: 'bg-gradient-to-br from-[#667EEA] to-[#764BA2]',
-        description: 'Visa, Mastercard, Discover'
-    },
     {
         id: 'cashapp',
         name: 'Cash App',
@@ -57,12 +48,20 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
         description: 'PayPal balance or card'
     },
     {
-        id: 'current',
+        id: 'chime',
         name: 'Chime',
         icon: 'C',
         color: '#22C55E',
         bgColor: 'bg-gradient-to-br from-[#22C55E] to-[#15803D]',
-        description: 'Chime account - instant'
+        description: 'Pay with your Chime card'
+    },
+    {
+        id: 'applepay',
+        name: 'Apple Pay',
+        icon: '',
+        color: '#E5E7EB',
+        bgColor: 'bg-gradient-to-br from-[#111827] to-[#374151]',
+        description: 'Apple Cash via Apple Pay'
     }
 ];
 
@@ -70,12 +69,15 @@ const QUICK_AMOUNTS = [25, 50, 100, 250, 500, 1000];
 
 export default function AddFundsModal({ onClose }: AddFundsModalProps) {
     const dispatch = useAppDispatch();
-    const isLoading = useAppSelector(selectIsLoading);
 
     const [step, setStep] = useState<Step>('select');
     const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
     const [amount, setAmount] = useState('');
     const [customAmount, setCustomAmount] = useState('');
+    const [cardHolderName, setCardHolderName] = useState('');
+    const [cardNumber, setCardNumber] = useState('');
+    const [expiry, setExpiry] = useState('');
+    const [cvc, setCvc] = useState('');
 
     const handleSelectMethod = (method: PaymentMethod) => {
         setSelectedMethod(method);
@@ -104,6 +106,27 @@ export default function AddFundsModal({ onClose }: AddFundsModalProps) {
         return parseFloat(amount) || 0;
     };
 
+    const formatCardNumber = (value: string) => {
+        const digitsOnly = value.replace(/\D/g, '').slice(0, 16);
+        return digitsOnly.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+    };
+
+    const formatExpiry = (value: string) => {
+        const digitsOnly = value.replace(/\D/g, '').slice(0, 4);
+        if (digitsOnly.length < 3) return digitsOnly;
+        return `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2)}`;
+    };
+
+    const isValidCardForm = () => {
+        const normalizedCard = cardNumber.replace(/\s/g, '');
+        return (
+            cardHolderName.trim().length > 2 &&
+            normalizedCard.length === 16 &&
+            expiry.length === 5 &&
+            cvc.length >= 3
+        );
+    };
+
     const handleDeposit = async () => {
         const depositAmount = getEffectiveAmount();
         
@@ -114,6 +137,16 @@ export default function AddFundsModal({ onClose }: AddFundsModalProps) {
 
         if (depositAmount > 10000) {
             toast.error('Maximum deposit is $10,000');
+            return;
+        }
+
+        if (selectedMethod === 'chime' && step === 'amount') {
+            setStep('cardDetails');
+            return;
+        }
+
+        if (selectedMethod === 'chime' && !isValidCardForm()) {
+            toast.error('Enter valid card details to continue');
             return;
         }
 
@@ -132,8 +165,9 @@ export default function AddFundsModal({ onClose }: AddFundsModalProps) {
             window.dispatchEvent(new CustomEvent('refresh-balances'));
             
             toast.success(`$${depositAmount.toFixed(2)} added successfully!`);
-        } catch (error: any) {
-            toast.error(error.message || 'Deposit failed');
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Deposit failed';
+            toast.error(message);
             setStep('amount');
         }
     };
@@ -148,7 +182,10 @@ export default function AddFundsModal({ onClose }: AddFundsModalProps) {
                     <div className="flex items-center justify-between">
                         {step !== 'select' && step !== 'success' && (
                             <button
-                                onClick={() => step === 'amount' ? setStep('select') : null}
+                                onClick={() => {
+                                    if (step === 'amount') setStep('select');
+                                    if (step === 'cardDetails') setStep('amount');
+                                }}
                                 className="text-[#8CA1C2] hover:text-white transition-colors"
                             >
                                 <FiChevronLeft size={24} />
@@ -157,6 +194,7 @@ export default function AddFundsModal({ onClose }: AddFundsModalProps) {
                         <h2 className="text-white text-xl font-semibold flex-1 text-center">
                             {step === 'select' && 'Add Funds'}
                             {step === 'amount' && 'Enter Amount'}
+                            {step === 'cardDetails' && 'Card Details'}
                             {step === 'processing' && 'Processing'}
                             {step === 'success' && 'Success!'}
                         </h2>
@@ -268,9 +306,75 @@ export default function AddFundsModal({ onClose }: AddFundsModalProps) {
                                 className="w-full bg-[#82F764] hover:bg-[#6AD84F] disabled:bg-[#2A3244] disabled:text-[#8CA1C2] text-black font-bold py-4 rounded-xl transition-all duration-300 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:shadow-[#82F764]/20"
                             >
                                 {getEffectiveAmount() >= 1 
-                                    ? `Add $${getEffectiveAmount().toFixed(2)}`
+                                    ? selectedMethod === 'chime'
+                                        ? `Continue with Chime • $${getEffectiveAmount().toFixed(2)}`
+                                        : `Add $${getEffectiveAmount().toFixed(2)}`
                                     : 'Enter an amount'
                                 }
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Step: Card Details (Chime only) */}
+                    {step === 'cardDetails' && selectedOption && (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-center gap-3 bg-[#202736] rounded-xl p-3">
+                                <div className={`w-10 h-10 ${selectedOption.bgColor} rounded-lg flex items-center justify-center text-xl`}>
+                                    {selectedOption.icon}
+                                </div>
+                                <span className="text-white font-medium">Pay with {selectedOption.name}</span>
+                            </div>
+
+                            <div>
+                                <label className="text-[#8CA1C2] text-sm mb-1 block">Cardholder name</label>
+                                <input
+                                    value={cardHolderName}
+                                    onChange={(e) => setCardHolderName(e.target.value)}
+                                    placeholder="Name on card"
+                                    className="w-full bg-[#202736] border border-[#2A3244] rounded-xl px-4 py-3 text-white outline-none focus:border-[#82F764]/50"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-[#8CA1C2] text-sm mb-1 block">Card number</label>
+                                <input
+                                    inputMode="numeric"
+                                    value={cardNumber}
+                                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                                    placeholder="1234 5678 9012 3456"
+                                    className="w-full bg-[#202736] border border-[#2A3244] rounded-xl px-4 py-3 text-white outline-none focus:border-[#82F764]/50"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[#8CA1C2] text-sm mb-1 block">Expiry</label>
+                                    <input
+                                        inputMode="numeric"
+                                        value={expiry}
+                                        onChange={(e) => setExpiry(formatExpiry(e.target.value))}
+                                        placeholder="MM/YY"
+                                        className="w-full bg-[#202736] border border-[#2A3244] rounded-xl px-4 py-3 text-white outline-none focus:border-[#82F764]/50"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[#8CA1C2] text-sm mb-1 block">CVC</label>
+                                    <input
+                                        inputMode="numeric"
+                                        value={cvc}
+                                        onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                        placeholder="123"
+                                        className="w-full bg-[#202736] border border-[#2A3244] rounded-xl px-4 py-3 text-white outline-none focus:border-[#82F764]/50"
+                                    />
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleDeposit}
+                                disabled={!isValidCardForm()}
+                                className="w-full bg-[#82F764] hover:bg-[#6AD84F] disabled:bg-[#2A3244] disabled:text-[#8CA1C2] text-black font-bold py-4 rounded-xl transition-all duration-300 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:shadow-[#82F764]/20"
+                            >
+                                Pay ${getEffectiveAmount().toFixed(2)}
                             </button>
                         </div>
                     )}
