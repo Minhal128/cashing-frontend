@@ -9,7 +9,6 @@ import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { toast } from "react-hot-toast";
 
 // Import icons
-import CardIcon from "../../public/assets/card.png";
 import CashAppIcon from "../../public/assets/cash.png";
 import VenmoIcon from "../../public/assets/venmo.png";
 
@@ -63,19 +62,10 @@ const ChimeIcon = () => (
   </svg>
 );
 
-// Debit Card SVG Icon Component - Credit card design
-const DebitCardIcon = () => (
-  <svg viewBox="0 0 32 32" className="w-8 h-8" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="2" y="6" width="28" height="20" rx="3" fill="url(#cardGradient)"/>
-    <rect x="2" y="11" width="28" height="4" fill="#000" opacity="0.3"/>
-    <rect x="5" y="19" width="10" height="2" rx="1" fill="#fff" opacity="0.8"/>
-    <rect x="17" y="19" width="10" height="2" rx="1" fill="#fff" opacity="0.8"/>
-    <defs>
-      <linearGradient id="cardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" style={{ stopColor: '#667EEA', stopOpacity: 1 }} />
-        <stop offset="100%" style={{ stopColor: '#764BA2', stopOpacity: 1 }} />
-      </linearGradient>
-    </defs>
+// Apple Pay SVG Icon Component
+const ApplePayIcon = () => (
+  <svg viewBox="0 0 32 32" className="w-8 h-8" fill="currentColor">
+    <path d="M18.5 6.5c-.6.7-1.5 1.2-2.4 1.2-.1 0-.2 0-.3-.1.1-.6.5-1.3.9-1.7.6-.6 1.5-1.1 2.3-1.1.1 1 0 1.7-.5 2.7zm2.3.6c-1.1 0-2 .6-2.6.6-.7 0-1.6-.6-2.6-.6-2.1 0-4.1 1.5-4.1 4.4 0 2.7 2.2 6.5 4.6 6.5 1.1 0 1.5-.7 2.7-.7 1.2 0 1.5.7 2.6.7 2.4 0 4-4.3 4-6.6 0-.3 0-.6-.1-.9-2.2-.9-2-3.8-3.5-3.8z" fill="white"/>
   </svg>
 );
 
@@ -91,11 +81,11 @@ interface PaymentOption {
 const PAYMENT_OPTIONS: PaymentOption[] = [
   {
     id: 'card',
-    name: 'Debit Card',
-    icon: CardIcon,
-    iconType: 'image',
-    bgColor: 'bg-gradient-to-br from-[#667EEA] to-[#764BA2]',
-    description: 'Visa, Mastercard, Discover'
+    name: 'Apple Pay',
+    icon: ApplePayIcon,
+    iconType: 'component',
+    bgColor: 'bg-gradient-to-br from-[#1A1A1A] to-[#000000]',
+    description: 'Pay with Apple Pay'
   },
   {
     id: 'cashapp',
