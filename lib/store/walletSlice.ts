@@ -134,7 +134,11 @@ export const withdrawFunds = createAsyncThunk(
             });
             return response.data.data;
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.error || 'Withdrawal failed');
+            return rejectWithValue(
+                error.response?.data?.message
+                || error.response?.data?.error
+                || 'Withdrawal failed'
+            );
         }
     }
 );

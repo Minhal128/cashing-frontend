@@ -265,6 +265,7 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
             bank_account: 'bank_account'
         };
         const apiDestination = destinationMap[selectedMethod || ''] || selectedMethod;
+        let payoutToastId: string | undefined;
 
         try {
             if (selectedMethod === 'crypto') {
@@ -325,11 +326,11 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
                     }
 
                     toast.error(getErrorMessage(directError, 'Withdrawal failed'), { id: requestToastId });
-                    throw directError;
+                    return;
                 }
             }
 
-            const payoutToastId = toast.loading('Withdrawal request submitted. Processing...');
+            payoutToastId = toast.loading('Withdrawal request submitted. Processing...');
 
             await dispatch(withdrawFunds({
                 amount: amountNum,
@@ -340,7 +341,12 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
             toast.success('Withdrawal request processed successfully', { id: payoutToastId });
             setStep('success');
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Withdrawal failed'));
+            const message = getErrorMessage(err, 'Withdrawal failed');
+            if (payoutToastId) {
+                toast.error(message, { id: payoutToastId });
+            } else {
+                toast.error(message);
+            }
         } finally {
             setIsDirectProcessing(false);
         }

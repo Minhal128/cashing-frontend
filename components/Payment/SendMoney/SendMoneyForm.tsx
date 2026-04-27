@@ -303,10 +303,21 @@ function BankForm({ onRefresh, selectedCurrency, onCurrencyChange, amount, setAm
   const [savedCards, setSavedCards] = useState<any[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
+  const isMockCard = (card: any) => {
+    const stripeId = String(card?.stripePaymentMethodId || "");
+    const detailsText = String(card?.details || "").toLowerCase();
+    return stripeId.startsWith("pm_card_") || detailsText.includes("ending with 4242");
+  };
+
+  const getCardLast4 = (details: string) => {
+    const digits = String(details || "").replace(/\D/g, "");
+    return digits.length >= 4 ? digits.slice(-4) : "****";
+  };
+
   const fetchSavedCards = async () => {
     try {
       const res = await api.get("/wallet/payment-methods");
-      const cards = res.data.filter((m: any) => m.type === "card");
+      const cards = (res.data || []).filter((m: any) => m.type === "card" && !isMockCard(m));
       setSavedCards(cards);
       if (cards.length > 0) {
         setSelectedCardId(cards[0]._id);
@@ -316,9 +327,9 @@ function BankForm({ onRefresh, selectedCurrency, onCurrencyChange, amount, setAm
     }
   };
 
-  useState(() => {
+  useEffect(() => {
     fetchSavedCards();
-  });
+  }, []);
 
   const formatCardNumber = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 16);
@@ -390,7 +401,7 @@ function BankForm({ onRefresh, selectedCurrency, onCurrencyChange, amount, setAm
               >
                 <div className="flex flex-col">
                   <span className="text-sm font-DMSans font-medium text-white capitalize">{card.provider || "Card"}</span>
-                  <span className="text-[10px] text-gray-500 uppercase">Ending in {card.details || "****"}</span>
+                  <span className="text-[10px] text-gray-500 uppercase">Ending in ****{getCardLast4(card.details)}</span>
                 </div>
                 {selectedCardId === card._id && <div className="w-2 h-2 rounded-full bg-[#82F764]" />}
               </div>

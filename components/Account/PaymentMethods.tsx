@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import api from "@/lib/api";
 import { useEffect } from "react";
 import { toast } from "react-hot-toast";
@@ -9,39 +8,27 @@ import { Check, Trash2, Plus } from "lucide-react";
 import AddNewCardForm from "../Card/AddNewCardForm";
 import { useConnectCryptoWallet } from "@/lib/reown/useConnectCryptoWallet";
 
-interface PaymentMethod {
-  id: number;
-  title: string;
-  subtitle: string;
-  icon: string;
-}
-
-const paymentMethods: PaymentMethod[] = [
-  {
-    id: 1,
-    title: "Visa",
-    subtitle: "Ending with 5769",
-    icon: "/assets/visa.png",
-  },
-  {
-    id: 2,
-    title: "Apple Pay",
-    subtitle: "josh436@gmail.com",
-    icon: "/assets/pay.png",
-  },
-  {
-    id: 3,
-    title: "Cashapp",
-    subtitle: "josh436@gmail.com",
-    icon: "/assets/cash.png",
-  },
-];
-
 export default function PaymentMethods() {
   const [activeId, setActiveId] = useState<string>("");
   const [methods, setMethods] = useState<any[]>([]);
   const [showAddCard, setShowAddCard] = useState(false);
   const { connectAndLinkWallet, isLinking } = useConnectCryptoWallet();
+
+  const isMockCardMethod = (method: any) => {
+    const stripeId = String(method?.stripePaymentMethodId || "");
+    const detailsText = String(method?.details || "").toLowerCase();
+    return stripeId.startsWith("pm_card_") || detailsText.includes("ending with 4242");
+  };
+
+  const formatMethodDetails = (method: any) => {
+    if (method?.type !== "card") {
+      return method?.details || "";
+    }
+
+    const digits = String(method?.details || "").replace(/\D/g, "");
+    const last4 = digits.length >= 4 ? digits.slice(-4) : "****";
+    return `Ending in ****${last4}`;
+  };
 
   useEffect(() => {
     fetchMethods();
@@ -50,8 +37,13 @@ export default function PaymentMethods() {
   const fetchMethods = async () => {
     try {
       const res = await api.get("/wallet/payment-methods");
-      setMethods(res.data);
-      if (res.data.length > 0) setActiveId(res.data[0]._id);
+      const visibleMethods = (res.data || []).filter((method: any) => !isMockCardMethod(method));
+      setMethods(visibleMethods);
+      if (visibleMethods.length > 0) {
+        setActiveId(visibleMethods[0]._id);
+      } else {
+        setActiveId("");
+      }
     } catch (error) {
       console.error(error);
     }
@@ -65,25 +57,6 @@ export default function PaymentMethods() {
     } catch (error: any) {
       console.error(error);
       toast.error("Failed to remove payment method");
-    }
-  };
-
-  // Add test card for demo purposes
-  const addTestCard = async () => {
-    try {
-      // Use Stripe test token for test cards
-      await api.post("/wallet/payment-methods", {
-        type: 'card',
-        provider: 'Visa',
-        details: 'Ending with 4242',
-        paymentMethodId: 'pm_card_visa' // Stripe test payment method
-      });
-
-      toast.success("Test card added!");
-      fetchMethods();
-    } catch (error: any) {
-      console.error(error);
-      toast.error("Failed to add test card");
     }
   };
 
@@ -124,7 +97,7 @@ export default function PaymentMethods() {
                   <div>
                     <p className="text-sm font-DMSans mb-0.5 capitalize">{item.type} - {item.provider}</p>
                     <p className="text-xs text-[#6F81A0] font-DMSans">
-                      {item.details}
+                      {formatMethodDetails(item)}
                     </p>
                   </div>
                 </div>
@@ -169,18 +142,7 @@ export default function PaymentMethods() {
           "
         >
           <Plus size={16} />
-          {showAddCard ? "Cancel" : "Add Real Card"}
-        </button>
-
-        <button
-          onClick={addTestCard}
-          className="
-            rounded-lg bg-[#2B3343]
-            px-6 py-2 text-sm font-DMSans text-white
-            cursor-pointer hover:bg-[#3b4455]
-          "
-        >
-          Add Test Card (Mock)
+          {showAddCard ? "Cancel" : "Add Card"}
         </button>
 
         <button

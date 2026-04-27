@@ -80,6 +80,7 @@ export default function AddNewCardForm() {
         });
 
         toast.success("Card added successfully!");
+        setLoading(false);
         // Small delay to allow user to see success toast before reload
         setTimeout(() => {
           window.location.reload();
@@ -92,27 +93,6 @@ export default function AddNewCardForm() {
     } catch (error: any) {
       console.error("Card addition error:", error);
       toast.error(error.message || "An unexpected error occurred");
-      setLoading(false);
-    }
-  };
-
-  const handleAddTestCard = async () => {
-    try {
-      setLoading(true);
-      await api.post("/wallet/payment-methods", {
-        type: 'card',
-        provider: 'Visa',
-        details: 'Ending with 4242',
-        paymentMethodId: 'pm_card_visa' // Stripe test payment method
-      });
-
-      toast.success("Test card added!");
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-    } catch (error: any) {
-      console.error("Test card error:", error);
-      toast.error(error.response?.data?.message || "Failed to add test card");
       setLoading(false);
     }
   };
@@ -152,15 +132,7 @@ export default function AddNewCardForm() {
           disabled={loading}
           className="w-full rounded-xl font-DMSans bg-[#82F764] px-6 py-3 text-sm font-bold text-black hover:opacity-90 disabled:opacity-50 transition-all"
         >
-          {loading ? "Processing..." : "Add Real Card"}
-        </button>
-
-        <button
-          onClick={handleAddTestCard}
-          disabled={loading}
-          className="w-full rounded-xl font-DMSans bg-[#202736] border border-white/10 px-6 py-3 text-sm font-medium text-white hover:bg-white/5 disabled:opacity-50 transition-all"
-        >
-          {loading ? "Please wait..." : "Add Test Card (Mock)"}
+          {loading ? "Processing..." : "Add Card"}
         </button>
       </div>
     </div>
