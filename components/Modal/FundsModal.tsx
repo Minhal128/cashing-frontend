@@ -291,7 +291,8 @@ export default function FundsModal({
     }
 
     if (selectedMethod === 'card') {
-      setStep('card-details');
+      // Card/Apple Pay - create payment intent and show payment UI
+      await createPaymentIntent('card');
     } else if (selectedMethod === 'paypal') {
       // PayPal - redirect to PayPal
       await handlePayPalCheckout();
@@ -360,8 +361,8 @@ export default function FundsModal({
       
       setClientSecret(response.data.clientSecret);
       
-      // For cashapp, show the payment UI
-      if (paymentType === 'cashapp') {
+      // For cashapp and card (Apple Pay), show the payment UI
+      if (paymentType === 'cashapp' || paymentType === 'card') {
         setStep('card-details');
         setPaymentElementReady(false);
       } else {
@@ -700,8 +701,8 @@ export default function FundsModal({
                 <p className="text-white text-3xl font-bold">${getEffectiveAmount().toFixed(2)}</p>
               </div>
 
-              {/* Dynamic Payment Element for Cash App */}
-              {selectedMethod === 'cashapp' && clientSecret ? (
+              {/* Dynamic Payment Element for Cash App and Apple Pay */}
+              {(selectedMethod === 'cashapp' || selectedMethod === 'card') && clientSecret ? (
                 <div className="bg-white/5 rounded-xl p-6 border border-white/10 text-center">
                   <div className="mb-4">
                     <div className={`w-20 h-20 ${selectedOption?.bgColor || 'bg-gray-800'} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
@@ -713,7 +714,9 @@ export default function FundsModal({
                     </div>
                     <h3 className="text-white text-lg font-semibold mb-2">Pay with {selectedOption?.name}</h3>
                     <p className="text-gray-400 text-sm mb-6">
-                      Enter your payment details below
+                      {selectedMethod === 'card' 
+                        ? 'Apple Pay will appear below if available on your device'
+                        : 'Enter your payment details below'}
                     </p>
                   </div>
 
@@ -721,8 +724,8 @@ export default function FundsModal({
                     <Elements stripe={stripe} options={{ clientSecret, appearance: { theme: "night" } }}>
                       <GenericStripeCheckoutForm 
                         buttonText={`Pay with ${selectedOption?.name}`}
-                        buttonBg={'bg-[#00D632]'}
-                        buttonHover={'hover:bg-[#00BD2B]'}
+                        buttonBg={selectedMethod === 'card' ? 'bg-[#1A1A1A]' : 'bg-[#00D632]'}
+                        buttonHover={selectedMethod === 'card' ? 'hover:bg-[#333333]' : 'hover:bg-[#00BD2B]'}
                       />
                     </Elements>
                   )}
