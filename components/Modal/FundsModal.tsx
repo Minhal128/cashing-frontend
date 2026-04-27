@@ -69,6 +69,30 @@ const ApplePayIcon = () => (
   </svg>
 );
 
+// Credit Card Icon Component
+const CreditCardIcon = () => (
+  <svg viewBox="0 0 32 32" className="w-8 h-8" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="6" width="28" height="20" rx="3" fill="url(#cardGradient)"/>
+    <rect x="2" y="11" width="28" height="4" fill="#000" opacity="0.3"/>
+    <rect x="5" y="19" width="10" height="2" rx="1" fill="#fff" opacity="0.8"/>
+    <rect x="17" y="19" width="10" height="2" rx="1" fill="#fff" opacity="0.8"/>
+    <defs>
+      <linearGradient id="cardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#667EEA"/>
+        <stop offset="100%" stopColor="#764BA2"/>
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
+// Detect if Apple Pay is available (Safari on macOS/iOS only)
+const isApplePayAvailable = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const isAppleDevice = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+  return isSafari && isAppleDevice && (window as any).ApplePaySession;
+};
+
 interface PaymentOption {
   id: PaymentMethod;
   name: string;
@@ -78,15 +102,30 @@ interface PaymentOption {
   description: string;
 }
 
-const PAYMENT_OPTIONS: PaymentOption[] = [
-  {
+// Get card payment option based on device
+const getCardPaymentOption = (): PaymentOption => {
+  if (isApplePayAvailable()) {
+    return {
+      id: 'card',
+      name: 'Apple Pay',
+      icon: ApplePayIcon,
+      iconType: 'component',
+      bgColor: 'bg-gradient-to-br from-[#1A1A1A] to-[#000000]',
+      description: 'Pay with Apple Pay'
+    };
+  }
+  return {
     id: 'card',
-    name: 'Apple Pay',
-    icon: ApplePayIcon,
+    name: 'Credit/Debit Card',
+    icon: CreditCardIcon,
     iconType: 'component',
-    bgColor: 'bg-gradient-to-br from-[#1A1A1A] to-[#000000]',
-    description: 'Pay with Apple Pay'
-  },
+    bgColor: 'bg-gradient-to-br from-[#667EEA] to-[#764BA2]',
+    description: 'Visa, Mastercard, Discover'
+  };
+};
+
+const PAYMENT_OPTIONS: PaymentOption[] = [
+  getCardPaymentOption(),
   {
     id: 'cashapp',
     name: 'Cash App',
@@ -714,8 +753,10 @@ export default function FundsModal({
                     </div>
                     <h3 className="text-white text-lg font-semibold mb-2">Pay with {selectedOption?.name}</h3>
                     <p className="text-gray-400 text-sm mb-6">
-                      {selectedMethod === 'card' 
+                      {selectedMethod === 'card' && isApplePayAvailable()
                         ? 'Apple Pay will appear below if available on your device'
+                        : selectedMethod === 'card'
+                        ? 'Enter your card details below'
                         : 'Enter your payment details below'}
                     </p>
                   </div>
@@ -724,8 +765,8 @@ export default function FundsModal({
                     <Elements stripe={stripe} options={{ clientSecret, appearance: { theme: "night" } }}>
                       <GenericStripeCheckoutForm 
                         buttonText={`Pay with ${selectedOption?.name}`}
-                        buttonBg={selectedMethod === 'card' ? 'bg-[#1A1A1A]' : 'bg-[#00D632]'}
-                        buttonHover={selectedMethod === 'card' ? 'hover:bg-[#333333]' : 'hover:bg-[#00BD2B]'}
+                        buttonBg={selectedMethod === 'card' && isApplePayAvailable() ? 'bg-[#1A1A1A]' : selectedMethod === 'card' ? 'bg-gradient-to-r from-[#667EEA] to-[#764BA2]' : 'bg-[#00D632]'}
+                        buttonHover={selectedMethod === 'card' && isApplePayAvailable() ? 'hover:bg-[#333333]' : selectedMethod === 'card' ? 'hover:opacity-90' : 'hover:bg-[#00BD2B]'}
                       />
                     </Elements>
                   )}
