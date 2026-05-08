@@ -150,7 +150,7 @@ export default function VerifyIdentityPage() {
   const [loading, setLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [kycStatus, setKycStatus] = useState<KycStatus>('pending');
-  const [dotsFlowLink, setDotsFlowLink] = useState<string | null>(null);
+  const [verificationUrl, setVerificationUrl] = useState<string | null>(null);
 
   // Form fields
   const [dob, setDob] = useState<Date | null>(null);
@@ -175,7 +175,7 @@ export default function VerifyIdentityPage() {
   }, []);
 
   useEffect(() => {
-    if (!dotsFlowLink) {
+    if (!verificationUrl) {
       return;
     }
 
@@ -186,7 +186,7 @@ export default function VerifyIdentityPage() {
         setKycStatus(status);
 
         if (status === 'verified') {
-          setDotsFlowLink(null);
+          setVerificationUrl(null);
           toast.success('Identity verified successfully!');
           setTimeout(() => router.push('/dashboard'), 1200);
         }
@@ -196,7 +196,7 @@ export default function VerifyIdentityPage() {
     }, 5000);
 
     return () => clearInterval(intervalId);
-  }, [dotsFlowLink, router]);
+  }, [verificationUrl, router]);
 
   const checkVerificationStatus = async (notifyIfVerified = true) => {
     try {
@@ -234,20 +234,20 @@ export default function VerifyIdentityPage() {
         address
       });
 
-      // Then start Dots verification flow
+      // Then start verification flow
       const response = await api.post('/kyc/create-verification-session', {
         returnUrl: `${window.location.origin}/verifyidentity`
       });
-      const { flowLink } = response.data;
+      const { url, flowLink } = response.data;
+      const finalUrl = url || flowLink;
 
-      if (!flowLink) {
+      if (!finalUrl) {
         toast.error('Failed to create verification session');
         setLoading(false);
         return;
       }
-
       setKycStatus('processing');
-      setDotsFlowLink(flowLink);
+      setVerificationUrl(finalUrl);
     } catch (error: any) {
       console.error("Verification failed:", error);
       toast.error(error.response?.data?.message || "Verification failed");
@@ -257,7 +257,7 @@ export default function VerifyIdentityPage() {
   };
 
   // Show processing/verified state
-  if (kycStatus === 'verified' || (kycStatus === 'processing' && !dotsFlowLink)) {
+  if (kycStatus === 'verified' || (kycStatus === 'processing' && !verificationUrl)) {
     return (
       <div className="relative min-h-screen w-full flex items-center justify-center px-4 overflow-hidden">
         <div className="absolute inset-0 z-0">
@@ -296,7 +296,7 @@ export default function VerifyIdentityPage() {
       <div className="absolute inset-0 z-0">
         <Image
           src={BgImg}
-          alt="Dots background"
+          alt="App background"
           fill
           priority
           className="object-cover opacity-30"
@@ -306,19 +306,19 @@ export default function VerifyIdentityPage() {
       {/* Overlay */}
       <div className="absolute inset-0 z-10 bg-[#202632]/95" />
 
-      {/* In-page Dots verification embed */}
-      {dotsFlowLink && (
+      {/* In-page verification embed */}
+      {verificationUrl && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm p-4 sm:p-6">
           <div className="w-full h-full max-w-5xl mx-auto bg-[#202736] rounded-xl border border-[#3C465E] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#3C465E]">
               <div>
-                <h3 className="text-white text-base font-semibold">Complete Dots Verification</h3>
+                <h3 className="text-white text-base font-semibold">Complete Identity Verification</h3>
                 <p className="text-[#8CA1C2] text-xs">Stay on this page and finish verification below.</p>
               </div>
               <button
                 type="button"
                 onClick={async () => {
-                  setDotsFlowLink(null);
+                  setVerificationUrl(null);
                   await checkVerificationStatus(false);
                 }}
                 className="text-[#8CA1C2] hover:text-white text-sm"
@@ -328,8 +328,8 @@ export default function VerifyIdentityPage() {
             </div>
 
             <iframe
-              src={dotsFlowLink}
-              title="Dots verification"
+              src={verificationUrl}
+              title="Identity verification"
               className="w-full flex-1 min-h-[560px] bg-white"
               allow="camera; microphone; fullscreen"
             />
@@ -414,7 +414,7 @@ export default function VerifyIdentityPage() {
                 className="w-full bg-[#2A3244] text-white placeholder-[#8CA1C2] px-4 py-3 rounded-full outline-none"
               />
 
-              {/* Dots Identity Info Box */}
+              {/* Identity Info Box */}
               <div className="border border-[#3C465E] rounded-xl p-4 bg-[#2A3244]/40">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-[#82F764]/20 flex items-center justify-center">
@@ -423,7 +423,7 @@ export default function VerifyIdentityPage() {
                   <div>
                     <p className="text-white text-sm font-medium">Secure ID Verification</p>
                     <p className="text-[#8CA1C2] text-xs">
-                      Complete verification directly on this page with Dots
+                      Complete verification directly on this page to unlock withdrawals
                     </p>
                   </div>
                 </div>
@@ -432,18 +432,18 @@ export default function VerifyIdentityPage() {
 
             <button
               onClick={handleVerify}
-              disabled={loading || Boolean(dotsFlowLink)}
+              disabled={loading || Boolean(verificationUrl)}
               className={`w-full cursor-pointer mt-6 bg-[#82F764] text-black font-medium py-3 rounded-full hover:opacity-90 ${
-                loading || Boolean(dotsFlowLink) ? 'opacity-50 cursor-not-allowed' : ''
+                loading || Boolean(verificationUrl) ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
               {loading ? "Processing..." : "Proceed"}
             </button>
 
-            {/* Powered by Dots */}
+            {/* Powered by Stripe */}
             <div className="mt-4 flex justify-center">
               <div className="flex items-center gap-2 text-[#8CA1C2] text-xs">
-                <span>Powered by Dots</span>
+                <span>Secured by Stripe</span>
               </div>
             </div>
           </>
