@@ -15,7 +15,7 @@ const HeroSection = () => {
       <div className="absolute inset-0 z-0">
         <Image
           src={BgDotsImg}
-          alt="Dots background"
+          alt="App background"
           fill
           className="object-cover opacity-40"
         />

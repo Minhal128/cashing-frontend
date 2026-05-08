@@ -59,7 +59,7 @@ export default function SignInPage() {
       <div className="absolute inset-0 z-0">
         <Image
           src={BgImg}
-          alt="Dots background"
+          alt="App background"
           fill
           priority
           className="object-cover opacity-30"

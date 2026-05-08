@@ -6,6 +6,7 @@ import { SiCashapp, SiVenmo, SiPaypal } from 'react-icons/si';
 import { BsBank } from 'react-icons/bs';
 import { FaBitcoin } from 'react-icons/fa';
 import api from '@/lib/api';
+import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
 import {
     fetchPayoutMethods,
@@ -16,9 +17,6 @@ import {
     selectPayoutMethods,
     selectIsPayoutLoading,
     selectKycVerified,
-    selectDotsVerified,
-    selectDotsStatus,
-    selectDotsVerificationFlowLink,
     selectBalance,
     selectError,
     clearError
@@ -80,12 +78,10 @@ const getAddressValidationMessage = (ticker: CryptoTicker) => {
 
 export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
     const dispatch = useAppDispatch();
+    const router = useRouter();
     const payoutMethods = useAppSelector(selectPayoutMethods);
     const isLoading = useAppSelector(selectIsPayoutLoading);
     const kycVerified = useAppSelector(selectKycVerified);
-    const dotsVerified = useAppSelector(selectDotsVerified);
-    const dotsStatus = useAppSelector(selectDotsStatus);
-    const dotsVerificationFlowLink = useAppSelector(selectDotsVerificationFlowLink);
     const balance = useAppSelector(selectBalance);
     const error = useAppSelector(selectError);
 
@@ -150,28 +146,10 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
         return true;
     };
 
-    const handleVerifyDots = async () => {
+    const handleVerifyStripe = async () => {
         setIsVerifying(true);
-        try {
-            if (openCustomWalletLogin()) {
-                return;
-            }
-
-            const flowLink = await dispatch(createPayoutMethodFlow()).unwrap();
-            toast.success('Opening payout setup...');
-            window.location.assign(flowLink);
-        } catch (err) {
-            toast.error('Failed to open payout setup');
-        } finally {
-            setIsVerifying(false);
-        }
+        router.push('/verifyidentity');
     };
-
-    useEffect(() => {
-        if (dotsVerificationFlowLink) {
-            window.location.assign(dotsVerificationFlowLink);
-        }
-    }, [dotsVerificationFlowLink]);
 
     useEffect(() => {
         dispatch(fetchPayoutMethods());
@@ -190,8 +168,8 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
     }, [error, dispatch]);
 
     const handleSelectMethod = (methodType: string) => {
-        if (!dotsVerified && methodType !== 'crypto') {
-            toast.error('This payout method requires Dots verification. Use Direct Crypto for now or verify Dots.');
+        if (!kycVerified && methodType !== 'crypto') {
+            toast.error('This payout method requires identity verification.');
             return;
         }
 
@@ -236,7 +214,7 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
             }
 
             const flowLink = await dispatch(createPayoutMethodFlow()).unwrap();
-            toast.success('Opening Dots to link your account...');
+            toast.success('Opening payout setup...');
             window.open(flowLink, '_blank');
             
             setStep('amount');
@@ -454,25 +432,14 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
                     </button>
                 </div>
 
-                {!dotsVerified && (
-                    <div className="mb-4 rounded-xl border border-[#3C465E] bg-[#2A3244] p-3 text-sm text-[#8CA1C2]">
-                        Dots status: {dotsStatus}. You can still withdraw using Direct Crypto (no Dots).
-                        <button
-                            onClick={handleVerifyDots}
-                            disabled={isVerifying}
-                            className="ml-2 text-[#82F764] hover:underline disabled:opacity-50"
-                        >
-                            {isVerifying ? 'Opening...' : 'Verify Dots'}
-                        </button>
-                    </div>
-                )}
+                {/* Identity status removed for Dots, handled by KYC check above */}
 
                 {/* Step: Select Method */}
                 {step === 'select' && (
                     <>
                         <div className="grid grid-cols-2 gap-3">
                             {payoutMethods.map((method) => {
-                                const methodDisabled = !dotsVerified && method.type !== 'crypto';
+                                const methodDisabled = !kycVerified && method.type !== 'crypto';
 
                                 return (
                                     <button
@@ -496,14 +463,14 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
                                             <p className="text-[#8CA1C2] text-xs mt-1 truncate">{method.handle}</p>
                                         )}
                                         {methodDisabled && (
-                                            <p className="text-[#8CA1C2] text-[10px] mt-1">Verify Dots</p>
+                                            <p className="text-[#8CA1C2] text-[10px] mt-1">Verify Identity</p>
                                         )}
                                     </button>
                                 );
                             })}
                         </div>
 
-                        {dotsVerified && (
+                        {kycVerified && (
                             <div className="mt-4 space-y-3">
                                 <button
                                     onClick={handleOpenCashingWallet}
@@ -720,11 +687,11 @@ export default function PayoutMethods({ onClose }: PayoutMethodsProps) {
                     </div>
                 )}
 
-                {/* Powered by Dots */}
+                {/* Secured by Stripe */}
                 <div className="mt-6 flex justify-center">
                     <div className="flex items-center gap-2 text-[#8CA1C2] text-xs">
-                        <span>Powered by</span>
-                        <span className="font-semibold">Dots</span>
+                        <span>Secured by</span>
+                        <span className="font-semibold">Stripe</span>
                     </div>
                 </div>
             </div>
