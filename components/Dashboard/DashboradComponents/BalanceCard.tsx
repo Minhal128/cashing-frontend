@@ -32,7 +32,7 @@ export default function BalanceCard({ setActivePage, balance = 0, loading = fals
       {/* Background Image */}
       <Image
         src={BgImg}
-        alt="Dots background"
+        alt="App background"
         fill
         priority
         className="object-cover"
